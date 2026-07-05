@@ -12,6 +12,8 @@ import { toast } from 'sonner';
 interface FileImportQuestionsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  examId: string;
+  defaultSubject?: string;
 }
 
 const TEMPLATE_FORMATS: { format: 'xlsx' | 'xls' | 'csv'; label: string }[] = [
@@ -20,11 +22,11 @@ const TEMPLATE_FORMATS: { format: 'xlsx' | 'xls' | 'csv'; label: string }[] = [
   { format: 'csv', label: '.csv' },
 ];
 
-export function FileImportQuestionsModal({ open, onOpenChange }: FileImportQuestionsModalProps) {
+export function FileImportQuestionsModal({ open, onOpenChange, examId, defaultSubject }: FileImportQuestionsModalProps) {
   const { importQuestionsFromFile, isLoading } = useAdminStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [subject, setSubject] = useState('');
+  const [subject, setSubject] = useState(defaultSubject || '');
   const [marks, setMarks] = useState('1');
   const [difficulty, setDifficulty] = useState('Medium');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -32,7 +34,7 @@ export function FileImportQuestionsModal({ open, onOpenChange }: FileImportQuest
   const [generalError, setGeneralError] = useState('');
 
   const resetForm = () => {
-    setSubject('');
+    setSubject(defaultSubject || '');
     setMarks('1');
     setDifficulty('Medium');
     setSelectedFile(null);
@@ -47,7 +49,7 @@ export function FileImportQuestionsModal({ open, onOpenChange }: FileImportQuest
 
   const handleDownloadTemplate = async (format: 'xlsx' | 'xls' | 'csv') => {
     try {
-      const response = await api.get('/questions/template', {
+      const response = await api.get(`/exams/${examId}/questions/template`, {
         params: { format },
         responseType: 'blob',
       });
@@ -78,7 +80,7 @@ export function FileImportQuestionsModal({ open, onOpenChange }: FileImportQuest
     }
 
     try {
-      await importQuestionsFromFile(selectedFile, {
+      await importQuestionsFromFile(examId, selectedFile, {
         subject: subject.trim(),
         marks: Number(marks) || 1,
         difficulty,

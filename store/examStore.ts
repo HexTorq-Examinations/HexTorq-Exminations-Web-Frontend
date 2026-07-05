@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { api } from '@/lib/api';
+import { ExamMapping } from '@/types/admin';
 
 export type ExamStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'TERMINATED';
 
@@ -32,6 +33,7 @@ interface ExamState {
   maxViolations: number;
   answers: Record<string, string>; // questionId -> answer text
   examHistory: ExamHistoryEntry[];
+  myMappings: ExamMapping[];
 
   // Offline-resilience bookkeeping. Everything the student enters is applied to local
   // state immediately; these track what still needs to reach the server. All of this
@@ -51,6 +53,7 @@ interface ExamState {
   saveAnswer: (questionId: string, answer: string) => void;
   clearSession: () => void;
   fetchExamHistory: () => Promise<void>;
+  fetchMyMappings: () => Promise<void>;
   setOnlineStatus: (online: boolean) => void;
   flushPending: () => Promise<void>;
 }
@@ -68,6 +71,7 @@ export const useExamStore = create<ExamState>()(
       maxViolations: 5, // 5 warnings allowed; the 6th auto-terminates
       answers: {},
       examHistory: [],
+      myMappings: [],
 
       unsyncedQuestionIds: [],
       unsyncedViolationIds: [],
@@ -232,6 +236,11 @@ export const useExamStore = create<ExamState>()(
       fetchExamHistory: async () => {
         const { data } = await api.get('/exams/history/me');
         set({ examHistory: data });
+      },
+
+      fetchMyMappings: async () => {
+        const { data } = await api.get('/exam-mappings/mine');
+        set({ myMappings: data });
       },
 
       clearSession: () => {

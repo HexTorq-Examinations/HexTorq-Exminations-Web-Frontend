@@ -16,6 +16,10 @@ import { format } from 'date-fns';
 import { MessagingPanel } from '@/components/common/MessagingPanel';
 import { useMessagingStore } from '@/store/messagingStore';
 import { useServerClock } from '@/hooks/useServerClock';
+import { useAcademicStore } from '@/store/academicStore';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Layers, PlusCircle } from 'lucide-react';
+import { NameFormDialog } from '@/components/admin-views/modals/NameFormDialog';
 
 
 interface SidebarItem {
@@ -38,10 +42,24 @@ export function DashboardLayout({ children, sidebarItems, title }: DashboardLayo
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const { unreadTotal, fetchUnreadTotal, openPanel } = useMessagingStore();
+  const { batches, selectedBatchId, setSelectedBatchId, fetchBatches, addBatch, isLoading: isAcademicLoading } = useAcademicStore();
+  const [batchDialogOpen, setBatchDialogOpen] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Load the Admin's batches once and default the selector to the first one.
+  useEffect(() => {
+    if (user?.role !== 'ADMIN') return;
+    fetchBatches();
+  }, [user?.role, fetchBatches]);
+
+  useEffect(() => {
+    if (user?.role === 'ADMIN' && !selectedBatchId && batches.length > 0) {
+      setSelectedBatchId(batches[0].id!);
+    }
+  }, [user?.role, selectedBatchId, batches, setSelectedBatchId]);
 
   // Poll for new-message/notification badge counts every 15s while the app is open.
   useEffect(() => {
@@ -239,8 +257,36 @@ export function DashboardLayout({ children, sidebarItems, title }: DashboardLayo
             
             {/* Welcome Message */}
             <div className="hidden md:flex items-center text-sm font-bold text-slate-900 dark:text-slate-100 bg-blue-50 dark:bg-blue-900/20 px-4 py-1.5 rounded-full border border-blue-100 dark:border-blue-800/50">
-              Welcome back, {user?.name.split(' ')[0]} 
+              Welcome back, {user?.name.split(' ')[0]}
             </div>
+
+            {/* Batch selector — Admin only. Scopes the entire dashboard (Students, Exams, Exam Mapping, Reports). */}
+            {user?.role === 'ADMIN' && (
+              <div className="hidden md:flex items-center gap-1.5">
+                {batches.length > 0 && (
+                  <Select value={selectedBatchId ?? undefined} onValueChange={setSelectedBatchId}>
+                    <SelectTrigger className="h-9 w-40 gap-2 rounded-full border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-sm font-medium">
+                      <Layers className="h-3.5 w-3.5 text-slate-400" />
+                      <SelectValue placeholder="Select batch" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {batches.map((b) => (
+                        <SelectItem key={b.id} value={b.id!}>{b.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setBatchDialogOpen(true)}
+                  title="Create a new batch"
+                  className="h-9 w-9 text-slate-500 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  <PlusCircle className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </div>
           
           <div className="flex items-center gap-3">
@@ -325,6 +371,22 @@ export function DashboardLayout({ children, sidebarItems, title }: DashboardLayo
       </div>
 
       <MessagingPanel />
+
+      {user?.role === 'ADMIN' && (
+        <NameFormDialog
+          open={batchDialogOpen}
+          onOpenChange={setBatchDialogOpen}
+          title="Create Batch"
+          description="A batch groups schools, departments, classes, and students under one academic intake (e.g., 2024-2028)."
+          label="Batch Name"
+          isLoading={isAcademicLoading}
+          onSubmit={async (name) => {
+            await addBatch(name);
+            const created = useAcademicStore.getState().batches[0];
+            if (created?.id) setSelectedBatchId(created.id);
+          }}
+        />
+      )}
     </div>
   );
 }

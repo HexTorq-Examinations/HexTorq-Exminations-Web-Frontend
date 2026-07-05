@@ -14,16 +14,18 @@ interface StudentFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   studentToEdit?: Student | null;
+  classId: string;
 }
 
-export function StudentFormModal({ open, onOpenChange, studentToEdit }: StudentFormModalProps) {
+export function StudentFormModal({ open, onOpenChange, studentToEdit, classId }: StudentFormModalProps) {
   const { addStudent, updateStudent, isLoading } = useAdminStore();
   const [showPassword, setShowPassword] = React.useState(false);
-  
+
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<Student>({
     resolver: zodResolver(StudentSchema) as any,
     defaultValues: studentToEdit || {
       status: 'Active',
+      classId,
     }
   });
 
@@ -32,16 +34,16 @@ export function StudentFormModal({ open, onOpenChange, studentToEdit }: StudentF
       if (studentToEdit) {
         reset(studentToEdit);
       } else {
-        reset({ status: 'Active' });
+        reset({ status: 'Active', classId });
       }
     }
-  }, [open, studentToEdit, reset]);
+  }, [open, studentToEdit, classId, reset]);
 
   const onSubmit = async (data: Student) => {
     if (studentToEdit?.id) {
       await updateStudent(studentToEdit.id, data);
     } else {
-      await addStudent(data);
+      await addStudent({ ...data, classId });
     }
     onOpenChange(false);
   };
@@ -69,18 +71,6 @@ export function StudentFormModal({ open, onOpenChange, studentToEdit }: StudentF
               <Label htmlFor="registerNumber">Register Number *</Label>
               <Input id="registerNumber" {...register('registerNumber')} placeholder="e.g., ENR-2026-001" />
               {errors.registerNumber && <p className="text-red-500 text-xs">{errors.registerNumber.message}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="department">Department *</Label>
-              <Input id="department" {...register('department')} placeholder="e.g., Computer Science" />
-              {errors.department && <p className="text-red-500 text-xs">{errors.department.message}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="semester">Semester *</Label>
-              <Input id="semester" {...register('semester')} placeholder="e.g., Semester 5" />
-              {errors.semester && <p className="text-red-500 text-xs">{errors.semester.message}</p>}
             </div>
 
             <div className="space-y-2">

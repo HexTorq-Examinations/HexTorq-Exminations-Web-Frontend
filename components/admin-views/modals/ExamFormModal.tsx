@@ -88,7 +88,6 @@ export function ExamFormModal({ open, onOpenChange, examToEdit }: ExamFormModalP
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Draft">Draft</SelectItem>
-                  <SelectItem value="Scheduled">Scheduled</SelectItem>
                   <SelectItem value="Active">Active</SelectItem>
                   <SelectItem value="Completed">Completed</SelectItem>
                 </SelectContent>
@@ -117,18 +116,6 @@ export function ExamFormModal({ open, onOpenChange, examToEdit }: ExamFormModalP
                 <Input id="passingMarks" type="number" {...register('passingMarks')} placeholder="40" />
                 {errors.passingMarks && <p className="text-red-500 text-xs">{errors.passingMarks.message}</p>}
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="startDate">Start Date/Time *</Label>
-              <Input id="startDate" type="datetime-local" {...register('startDate')} />
-              {errors.startDate && <p className="text-red-500 text-xs">{errors.startDate.message}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="endDate">End Date/Time *</Label>
-              <Input id="endDate" type="datetime-local" {...register('endDate')} />
-              {errors.endDate && <p className="text-red-500 text-xs">{errors.endDate.message}</p>}
             </div>
 
             {/* Rules */}

@@ -1,15 +1,14 @@
 'use client';
 
 import { DashboardLayout } from '@/components/common/DashboardLayout';
-import { LayoutDashboard, GraduationCap, ClipboardCheck, Database, CalendarDays, BarChart3, FileText, Settings, User as UserIcon, Plus, Upload, Calendar, Users as UsersIcon, BarChart2 } from 'lucide-react';
+import { LayoutDashboard, GraduationCap, ClipboardCheck, CalendarDays, BarChart3, FileText, Settings, User as UserIcon, Plus, Upload, Calendar, Users as UsersIcon, BarChart2 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 
 const sidebarItems = [
   { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
   { name: 'Students', href: '/admin/students', icon: GraduationCap },
   { name: 'Exams', href: '/admin/exams', icon: ClipboardCheck },
-  { name: 'Question Bank', href: '/admin/question-bank', icon: Database },
-  { name: 'Schedules', href: '/admin/schedules', icon: CalendarDays },
+  { name: 'Exam Mapping', href: '/admin/exam-mapping', icon: CalendarDays },
   { name: 'Results', href: '/admin/results', icon: BarChart3 },
   { name: 'Reports', href: '/admin/reports', icon: FileText },
   { name: 'Settings', href: '/admin/settings', icon: Settings },

@@ -32,9 +32,12 @@ import { FileImportStudentsModal } from './modals/FileImportStudentsModal';
 
 interface StudentsViewProps {
   role: 'admin' | 'super-admin';
+  classId: string;
+  className?: string;
+  onBack?: () => void;
 }
 
-export function StudentsView({ role }: StudentsViewProps) {
+export function StudentsView({ role, classId, className, onBack }: StudentsViewProps) {
   const isSuperAdmin = role === 'super-admin';
   const { students, isLoading, fetchStudents, deleteStudent } = useAdminStore();
 
@@ -51,8 +54,8 @@ export function StudentsView({ role }: StudentsViewProps) {
   const [studentToDelete, setStudentToDelete] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchStudents();
-  }, [fetchStudents]);
+    if (classId) fetchStudents(classId);
+  }, [classId, fetchStudents]);
 
   const handleAdd = () => {
     setStudentToEdit(null);
@@ -60,10 +63,9 @@ export function StudentsView({ role }: StudentsViewProps) {
   };
 
   // Filtering
-  const filteredStudents = students.filter(s => 
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    s.registerNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.department.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredStudents = students.filter(s =>
+    s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.registerNumber.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Pagination
@@ -98,8 +100,8 @@ export function StudentsView({ role }: StudentsViewProps) {
 
   return (
     <div className="space-y-6 pb-10">
-      <PageHeader 
-        title="Student Management" 
+      <PageHeader
+        title={className ? `Students — ${className}` : 'Student Management'}
         description="Manage student records, assignments, and profiles."
         breadcrumbs={[
           { label: isSuperAdmin ? 'Super Admin' : 'Admin', href: `/${role}/dashboard` },
@@ -109,6 +111,11 @@ export function StudentsView({ role }: StudentsViewProps) {
         onSearch={setSearchTerm}
         actions={
           <div className="flex gap-3">
+            {onBack && (
+              <Button onClick={onBack} variant="outline">
+                Back to Classes
+              </Button>
+            )}
             <Button onClick={() => setImportModalOpen(true)} variant="outline" className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950">
               <UploadCloud className="w-4 h-4 mr-2" /> Import File
             </Button>
@@ -147,8 +154,6 @@ export function StudentsView({ role }: StudentsViewProps) {
                 <TableRow className="border-slate-200 dark:border-slate-800 hover:bg-transparent">
                   <TableHead className="font-semibold text-slate-900 dark:text-slate-200">Register No</TableHead>
                   <TableHead className="font-semibold text-slate-900 dark:text-slate-200">Name</TableHead>
-                  <TableHead className="font-semibold text-slate-900 dark:text-slate-200">Department</TableHead>
-                  <TableHead className="font-semibold text-slate-900 dark:text-slate-200">Semester</TableHead>
                   <TableHead className="font-semibold text-slate-900 dark:text-slate-200">Contact</TableHead>
                   <TableHead className="font-semibold text-slate-900 dark:text-slate-200">Status</TableHead>
                   <TableHead className="text-right font-semibold text-slate-900 dark:text-slate-200">Actions</TableHead>
@@ -164,8 +169,6 @@ export function StudentsView({ role }: StudentsViewProps) {
                         <span className="text-xs text-slate-500">{student.email}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-slate-600 dark:text-slate-400">{student.department}</TableCell>
-                    <TableCell className="text-slate-600 dark:text-slate-400">{student.semester}</TableCell>
                     <TableCell className="text-slate-600 dark:text-slate-400">{student.phone}</TableCell>
                     <TableCell>
                       <Badge 
@@ -221,18 +224,20 @@ export function StudentsView({ role }: StudentsViewProps) {
         />
       </Card>
 
-      <StudentFormModal 
-        open={editModalOpen} 
+      <StudentFormModal
+        open={editModalOpen}
         onOpenChange={(open) => {
           setEditModalOpen(open);
           if (!open) setTimeout(() => setStudentToEdit(null), 200);
         }}
         studentToEdit={studentToEdit}
+        classId={classId}
       />
 
       <FileImportStudentsModal
         open={importModalOpen}
         onOpenChange={setImportModalOpen}
+        classId={classId}
       />
 
       <ConfirmDialog

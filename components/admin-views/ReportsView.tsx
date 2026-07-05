@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart as RechartsBarChart, Bar
 } from 'recharts';
+import { api } from '@/lib/api';
 
 interface ReportsViewProps {
   role: 'admin' | 'super-admin';
@@ -17,6 +18,11 @@ interface ReportsViewProps {
 
 export function ReportsView({ role }: ReportsViewProps) {
   const isSuperAdmin = role === 'super-admin';
+  const [studentsByDepartment, setStudentsByDepartment] = useState<{ name: string; students: number }[]>([]);
+
+  useEffect(() => {
+    api.get('/dashboard/overview').then(({ data }) => setStudentsByDepartment(data.studentsByDepartment || []));
+  }, []);
 
   const handleExport = () => {
     // Simulate CSV download
@@ -172,6 +178,32 @@ export function ReportsView({ role }: ReportsViewProps) {
               <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white mt-4">
                 Generate Report
               </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Students per Department (real data) */}
+        <div className="lg:col-span-12">
+          <Card className="border-slate-200 dark:border-slate-800 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg font-bold">Students per Department</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-70 w-full">
+                {studentsByDepartment.length === 0 ? (
+                  <div className="h-full w-full flex items-center justify-center text-slate-400 text-sm">No students enrolled yet</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsBarChart data={studentsByDepartment} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} allowDecimals={false} />
+                      <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                      <Bar dataKey="students" fill="#3b82f6" name="Students" radius={[4, 4, 0, 0]} />
+                    </RechartsBarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>

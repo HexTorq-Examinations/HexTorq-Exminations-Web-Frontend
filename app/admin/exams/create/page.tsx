@@ -21,14 +21,12 @@ export default function CreateExamPage() {
     totalMarks: 100,
     passingMarks: 40,
     status: 'Draft' as const,
-    scheduledFor: '',
-    questions: [] as string[]
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title) return;
-    
+
     addExam({
       title: formData.title,
       subject: 'General',
@@ -36,15 +34,11 @@ export default function CreateExamPage() {
       totalMarks: Number(formData.totalMarks),
       passingMarks: Number(formData.passingMarks),
       status: formData.status,
-      startDate: formData.scheduledFor ? new Date(formData.scheduledFor).toISOString() : new Date().toISOString(),
-      endDate: formData.scheduledFor ? new Date(formData.scheduledFor).toISOString() : new Date().toISOString(),
-      questions: formData.questions,
-      assigned: 0,
       shuffleQuestions: false,
       shuffleOptions: false,
       negativeMarking: false
     });
-    
+
     router.push('/admin/exams');
   };
 
@@ -95,15 +89,6 @@ export default function CreateExamPage() {
                   value={formData.duration}
                   onChange={(e) => setFormData({...formData, duration: Number(e.target.value)})}
                   required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="scheduledFor">Schedule Date & Time</Label>
-                <Input 
-                  id="scheduledFor" 
-                  type="datetime-local"
-                  value={formData.scheduledFor}
-                  onChange={(e) => setFormData({...formData, scheduledFor: e.target.value})}
                 />
               </div>
               <div className="space-y-2">

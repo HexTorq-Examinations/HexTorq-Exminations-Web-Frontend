@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { ClipboardCheck, PlayCircle, CalendarClock, Edit3, MoreVertical, Settings, Eye, Copy, Trash2, Send, Users, Edit, Plus, ListChecks } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -28,7 +29,6 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { SkeletonTable } from '@/components/common/SkeletonTable';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { ExamFormModal } from './modals/ExamFormModal';
-import { ExamQuestionsModal } from './modals/ExamQuestionsModal';
 import { toast } from 'sonner';
 
 interface ExamsViewProps {
@@ -37,8 +37,9 @@ interface ExamsViewProps {
 
 export function ExamsView({ role }: ExamsViewProps) {
   const isSuperAdmin = role === 'super-admin';
-  const { exams, isLoading, fetchExams, fetchQuestions, deleteExam, updateExam } = useAdminStore();
-  
+  const router = useRouter();
+  const { exams, isLoading, fetchExams, deleteExam, updateExam } = useAdminStore();
+
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
@@ -46,16 +47,12 @@ export function ExamsView({ role }: ExamsViewProps) {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [examToEdit, setExamToEdit] = useState<Exam | null>(null);
 
-  const [questionsModalOpen, setQuestionsModalOpen] = useState(false);
-  const [examForQuestions, setExamForQuestions] = useState<Exam | null>(null);
-
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [examToDelete, setExamToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     fetchExams();
-    fetchQuestions();
-  }, [fetchExams, fetchQuestions]);
+  }, [fetchExams]);
 
   const handleAdd = () => {
     setExamToEdit(null);
@@ -76,7 +73,7 @@ export function ExamsView({ role }: ExamsViewProps) {
   const stats = [
     { title: 'Total Exams', value: exams.length, icon: ClipboardCheck, color: 'text-blue-600', bg: 'bg-blue-100' },
     { title: 'Active', value: exams.filter(e => e.status === 'Active').length, icon: PlayCircle, color: 'text-emerald-600', bg: 'bg-emerald-100' },
-    { title: 'Scheduled', value: exams.filter(e => e.status === 'Scheduled').length, icon: CalendarClock, color: 'text-amber-600', bg: 'bg-amber-100' },
+    { title: 'Completed', value: exams.filter(e => e.status === 'Completed').length, icon: CalendarClock, color: 'text-amber-600', bg: 'bg-amber-100' },
     { title: 'Drafts', value: exams.filter(e => e.status === 'Draft').length, icon: Edit3, color: 'text-slate-600', bg: 'bg-slate-100' },
   ];
 
@@ -104,8 +101,7 @@ export function ExamsView({ role }: ExamsViewProps) {
   };
 
   const handleManageQuestions = (exam: Exam) => {
-    setExamForQuestions(exam);
-    setQuestionsModalOpen(true);
+    router.push(`/${role}/exams/questions?examId=${exam.id}`);
   };
 
   const handlePublish = async (exam: Exam) => {
@@ -161,8 +157,7 @@ export function ExamsView({ role }: ExamsViewProps) {
                   <TableHead className="font-semibold text-slate-900 dark:text-slate-200">Exam Details</TableHead>
                   <TableHead className="font-semibold text-slate-900 dark:text-slate-200">Subject</TableHead>
                   <TableHead className="font-semibold text-slate-900 dark:text-slate-200">Duration</TableHead>
-                  <TableHead className="font-semibold text-slate-900 dark:text-slate-200">Date Range</TableHead>
-                  <TableHead className="font-semibold text-slate-900 dark:text-slate-200">Assigned</TableHead>
+                  <TableHead className="font-semibold text-slate-900 dark:text-slate-200">Mappings</TableHead>
                   <TableHead className="font-semibold text-slate-900 dark:text-slate-200">Status</TableHead>
                   <TableHead className="text-right font-semibold text-slate-900 dark:text-slate-200">Actions</TableHead>
                 </TableRow>
@@ -173,29 +168,21 @@ export function ExamsView({ role }: ExamsViewProps) {
                     <TableCell>
                       <div className="flex flex-col">
                         <span className="font-medium text-slate-900 dark:text-slate-100">{exam.title}</span>
-                        <span className="text-xs text-slate-500">{exam.questions?.length || 0} Questions • {exam.totalMarks} Marks</span>
+                        <span className="text-xs text-slate-500">{exam.questionCount || 0} Questions • {exam.totalMarks} Marks</span>
                       </div>
                     </TableCell>
                     <TableCell className="text-slate-600 dark:text-slate-400">{exam.subject}</TableCell>
                     <TableCell className="text-slate-600 dark:text-slate-400">{exam.duration} mins</TableCell>
                     <TableCell>
-                      <div className="flex flex-col">
-                        <span className="text-sm text-slate-600 dark:text-slate-300">
-                          {exam.startDate ? new Date(exam.startDate).toLocaleDateString() : 'TBD'}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
                       <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
-                        <Users className="w-3.5 h-3.5" /> {exam.assigned || 0}
+                        <Users className="w-3.5 h-3.5" /> {exam.mappingCount || 0}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge 
+                      <Badge
                         variant="secondary"
                         className={`
                           ${exam.status === 'Active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : ''}
-                          ${exam.status === 'Scheduled' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400' : ''}
                           ${exam.status === 'Completed' ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' : ''}
                           ${exam.status === 'Draft' ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' : ''}
                           font-medium border-0
@@ -268,16 +255,7 @@ export function ExamsView({ role }: ExamsViewProps) {
         examToEdit={examToEdit}
       />
 
-      <ExamQuestionsModal
-        open={questionsModalOpen}
-        onOpenChange={(open) => {
-          setQuestionsModalOpen(open);
-          if (!open) setTimeout(() => setExamForQuestions(null), 200);
-        }}
-        exam={examForQuestions}
-      />
-
-      <ConfirmDialog 
+      <ConfirmDialog
         open={deleteConfirmOpen}
         onOpenChange={setDeleteConfirmOpen}
         title="Delete Exam"

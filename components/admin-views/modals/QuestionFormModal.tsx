@@ -14,9 +14,10 @@ interface QuestionFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   questionToEdit?: Question | null;
+  examId: string;
 }
 
-export function QuestionFormModal({ open, onOpenChange, questionToEdit }: QuestionFormModalProps) {
+export function QuestionFormModal({ open, onOpenChange, questionToEdit, examId }: QuestionFormModalProps) {
   const { addQuestion, updateQuestion, isLoading } = useAdminStore();
   
   const { register, control, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<Question>({
@@ -75,9 +76,9 @@ export function QuestionFormModal({ open, onOpenChange, questionToEdit }: Questi
 
   const onSubmit = async (data: Question) => {
     if (questionToEdit?.id) {
-      await updateQuestion(questionToEdit.id, data);
+      await updateQuestion(examId, questionToEdit.id, data);
     } else {
-      await addQuestion(data);
+      await addQuestion(examId, data);
     }
     onOpenChange(false);
   };
@@ -89,7 +90,7 @@ export function QuestionFormModal({ open, onOpenChange, questionToEdit }: Questi
         <DialogHeader>
           <DialogTitle>{questionToEdit ? 'Edit Question' : 'Create New Question'}</DialogTitle>
           <DialogDescription>
-            {questionToEdit ? 'Modify question details.' : 'Add a new question to the central repository.'}
+            {questionToEdit ? 'Modify question details.' : 'Add a new question to this exam.'}
           </DialogDescription>
         </DialogHeader>
 

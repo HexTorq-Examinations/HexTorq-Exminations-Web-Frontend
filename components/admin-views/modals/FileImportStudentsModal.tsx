@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 interface FileImportStudentsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  classId: string;
 }
 
 const TEMPLATE_FORMATS: { format: 'xlsx' | 'xls' | 'csv'; label: string }[] = [
@@ -18,7 +19,7 @@ const TEMPLATE_FORMATS: { format: 'xlsx' | 'xls' | 'csv'; label: string }[] = [
   { format: 'csv', label: '.csv' },
 ];
 
-export function FileImportStudentsModal({ open, onOpenChange }: FileImportStudentsModalProps) {
+export function FileImportStudentsModal({ open, onOpenChange, classId }: FileImportStudentsModalProps) {
   const { importStudentsFromFile, isLoading } = useAdminStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -66,7 +67,7 @@ export function FileImportStudentsModal({ open, onOpenChange }: FileImportStuden
     }
 
     try {
-      await importStudentsFromFile(selectedFile);
+      await importStudentsFromFile(selectedFile, classId);
       onOpenChange(false);
     } catch (err) {
       const apiErr = err as ApiErrorWithRows;
@@ -84,7 +85,7 @@ export function FileImportStudentsModal({ open, onOpenChange }: FileImportStuden
         <DialogHeader>
           <DialogTitle>Import Students from File</DialogTitle>
           <DialogDescription>
-            Upload a .xlsx, .xls, or .csv file with columns: Name, RegisterNumber, Department, Semester, Email, Phone, Status (optional).
+            Upload a .xlsx, .xls, or .csv file with columns: Name, RegisterNumber, Email, Phone, Password, Status (optional). Students will be added to the class you're currently viewing.
           </DialogDescription>
         </DialogHeader>
 

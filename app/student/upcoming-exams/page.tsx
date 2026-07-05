@@ -9,35 +9,34 @@ import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { useAdminStore } from '@/store/adminStore';
 import { useExamStore } from '@/store/examStore';
 
 export default function StudentUpcomingExams() {
   const router = useRouter();
   const [instructionsOpen, setInstructionsOpen] = useState(false);
   const [selectedExam, setSelectedExam] = useState<any>(null);
-  const { exams, fetchExams } = useAdminStore();
-  const { examHistory, fetchExamHistory } = useExamStore();
+  const { myMappings, examHistory, fetchMyMappings, fetchExamHistory } = useExamStore();
 
   useEffect(() => {
-    fetchExams();
+    fetchMyMappings();
     fetchExamHistory();
-  }, [fetchExams, fetchExamHistory]);
+  }, [fetchMyMappings, fetchExamHistory]);
 
-  const upcomingExams = exams
-    .filter(e => e.status !== 'Active' && !(examHistory || []).some(h => h.examId === e.id))
-    .map(e => ({
-    id: e.id,
-    title: e.title,
-    subject: e.subject,
-    code: `EXM-${(e.id || '').toUpperCase()}`,
-    date: e.startDate ? new Date(e.startDate).toLocaleDateString() : 'TBD',
-    time: e.startDate ? new Date(e.startDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'TBD',
-    duration: `${(e.duration || 60) / 60} Hours`,
-    marks: e.totalMarks || 100,
-    questions: e.questions?.length || 50,
+  const upcomingExams = myMappings
+    .filter(m => m.status !== 'Completed' && m.status !== 'Cancelled' && !(examHistory || []).some(h => h.examId === m.examId))
+    .map(m => ({
+    id: m.examId,
+    mappingId: m.id,
+    title: m.examTitle || 'Exam',
+    subject: '',
+    code: `EXM-${(m.examId || '').toUpperCase()}`,
+    date: new Date(m.date).toLocaleDateString(),
+    time: m.startTime,
+    duration: `${m.startTime} - ${m.endTime}`,
+    marks: 0,
+    questions: 0,
     assignedBy: 'System Admin',
-    status: e.status === 'Active' ? 'Active' : 'Scheduled'
+    status: m.status,
   }));
 
   const metrics = [

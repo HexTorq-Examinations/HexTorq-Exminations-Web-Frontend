@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Users, GraduationCap, ClipboardCheck, Activity, Database, CalendarIcon, BarChart2, Bell, CheckCircle2, Clock, CalendarDays, CheckSquare, ShieldCheck, Cpu } from 'lucide-react';
+import { Users, GraduationCap, ClipboardCheck, Activity, Database, CalendarIcon, BarChart2, Bell, CheckCircle2, Clock, CalendarDays, CheckSquare, ShieldCheck, Cpu, Layers, School, Building2, BookOpen } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend, PieChart, Pie, Cell } from 'recharts';
 import { useAdminStore } from '@/store/adminStore';
 import { useSuperAdminStore } from '@/store/superAdminStore';
@@ -24,9 +24,22 @@ interface OverviewData {
   examTrends: { name: string; created: number; completed: number }[];
   examStatusDistribution: { name: string; value: number; color: string }[];
   studentGrowth: { name: string; active: number; new: number }[];
+  studentsByDepartment: { name: string; students: number }[];
   recentActivity: ActivityItem[];
   upcomingExams: { name: string; time: string; enrolled: number }[];
   pendingTasks: { task: string; status: string }[];
+  totalBatches: number;
+  totalSchools: number;
+  totalDepartments: number;
+  totalClasses: number;
+}
+
+interface StatsData {
+  totalStudents: number;
+  totalExams?: number;
+  activeExams: number;
+  totalAdmins?: number;
+  totalOrganizations?: number;
 }
 
 const timeAgo = (iso: string) => {
@@ -42,37 +55,45 @@ const timeAgo = (iso: string) => {
 
 export function DashboardView({ role }: DashboardViewProps) {
   const isSuperAdmin = role === 'super-admin';
-  const { students, exams, questions, results, fetchStudents, fetchExams, fetchQuestions, fetchResults } = useAdminStore();
+  const { exams, results, fetchExams, fetchResults } = useAdminStore();
   const { admins, fetchAdmins } = useSuperAdminStore();
   const [overview, setOverview] = useState<OverviewData | null>(null);
+  const [stats, setStats] = useState<StatsData | null>(null);
   const [isLoadingOverview, setIsLoadingOverview] = useState(true);
 
   useEffect(() => {
-    fetchStudents();
     fetchExams();
-    fetchQuestions();
     fetchResults();
     if (isSuperAdmin) fetchAdmins();
-  }, [fetchStudents, fetchExams, fetchQuestions, fetchResults, fetchAdmins, isSuperAdmin]);
+  }, [fetchExams, fetchResults, fetchAdmins, isSuperAdmin]);
 
   useEffect(() => {
     let cancelled = false;
     setIsLoadingOverview(true);
-    api.get('/dashboard/overview')
-      .then(({ data }) => { if (!cancelled) setOverview(data); })
+    Promise.all([
+      api.get('/dashboard/overview'),
+      api.get(isSuperAdmin ? '/dashboard/super-admin' : '/dashboard/admin'),
+    ])
+      .then(([overviewRes, statsRes]) => {
+        if (cancelled) return;
+        setOverview(overviewRes.data);
+        setStats(statsRes.data);
+      })
       .finally(() => { if (!cancelled) setIsLoadingOverview(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [isSuperAdmin]);
 
   // Shared stats
-  const stats = [
-    ...(isSuperAdmin ? [{ title: 'Total Admins', value: admins.length.toString(), icon: Users, color: 'text-purple-600', bg: 'bg-purple-100' }] : []),
-    { title: 'Total Students', value: students.length.toLocaleString(), icon: GraduationCap, color: 'text-blue-600', bg: 'bg-blue-100' },
+  const statTiles = [
+    ...(isSuperAdmin ? [{ title: 'Total Admins', value: (stats?.totalAdmins ?? admins.length).toString(), icon: Users, color: 'text-purple-600', bg: 'bg-purple-100' }] : []),
+    { title: 'Total Students', value: (stats?.totalStudents ?? 0).toLocaleString(), icon: GraduationCap, color: 'text-blue-600', bg: 'bg-blue-100' },
     { title: 'Total Exams', value: exams.length.toLocaleString(), icon: ClipboardCheck, color: 'text-emerald-600', bg: 'bg-emerald-100' },
-    { title: 'Active Exams', value: exams.filter(e => e.status === 'Active').length.toString(), icon: Activity, color: 'text-pink-600', bg: 'bg-pink-100' },
-    { title: 'Question Bank', value: questions.length.toLocaleString(), icon: Database, color: 'text-orange-600', bg: 'bg-orange-100' },
-    { title: 'Scheduled Exams', value: exams.filter(e => e.status === 'Scheduled').length.toString(), icon: CalendarIcon, color: 'text-indigo-600', bg: 'bg-indigo-100' },
+    { title: 'Active Exams', value: (stats?.activeExams ?? 0).toString(), icon: Activity, color: 'text-pink-600', bg: 'bg-pink-100' },
     { title: 'Published Results', value: results.length.toLocaleString(), icon: BarChart2, color: 'text-teal-600', bg: 'bg-teal-100' },
+    { title: 'Batches', value: (overview?.totalBatches ?? 0).toString(), icon: Layers, color: 'text-indigo-600', bg: 'bg-indigo-100' },
+    { title: 'Schools', value: (overview?.totalSchools ?? 0).toString(), icon: School, color: 'text-cyan-600', bg: 'bg-cyan-100' },
+    { title: 'Departments', value: (overview?.totalDepartments ?? 0).toString(), icon: Building2, color: 'text-orange-600', bg: 'bg-orange-100' },
+    { title: 'Classes', value: (overview?.totalClasses ?? 0).toString(), icon: BookOpen, color: 'text-rose-600', bg: 'bg-rose-100' },
   ];
 
   const examTrends = overview?.examTrends || [];
@@ -98,7 +119,7 @@ export function DashboardView({ role }: DashboardViewProps) {
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {stats.map((stat, i) => (
+        {statTiles.map((stat, i) => (
           <Card key={i} className="hover:shadow-md transition-shadow border-slate-200 dark:border-slate-800">
             <CardContent className="p-6 flex items-center gap-4">
               <div className={`p-4 rounded-xl ${stat.bg} dark:bg-opacity-20`}>

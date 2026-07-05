@@ -9,29 +9,31 @@ import Link from 'next/link';
 import { Progress } from '@/components/ui/progress';
 import { useRouter } from 'next/navigation';
 import { useExamStore } from '@/store/examStore';
-import { useAdminStore } from '@/store/adminStore';
 
 export default function StudentActiveExams() {
   const router = useRouter();
-  const { status, examId, examHistory, fetchExamHistory } = useExamStore();
-  const { exams, fetchExams } = useAdminStore();
+  const { status, examId, examHistory, myMappings, fetchExamHistory, fetchMyMappings } = useExamStore();
 
   useEffect(() => {
-    fetchExams();
+    fetchMyMappings();
     fetchExamHistory();
-  }, [fetchExams, fetchExamHistory]);
+  }, [fetchMyMappings, fetchExamHistory]);
 
-  const allActiveExams = exams.filter(e => e.status === 'Active' && !(examHistory || []).some(h => h.examId === e.id)).map(e => ({
-    id: e.id,
-    title: e.title,
-    subject: e.subject,
-    startedTime: 'Started',
-    remainingTime: `${Math.floor(e.duration || 60)} mins`,
-    questionsAnswered: 0,
-    questionsRemaining: e.questions?.length || 50,
-    totalQuestions: e.questions?.length || 50,
-    progress: 0
-  }));
+  const isToday = (dateStr: string) => new Date(dateStr).toDateString() === new Date().toDateString();
+
+  const allActiveExams = myMappings
+    .filter(m => isToday(m.date) && m.status !== 'Completed' && m.status !== 'Cancelled' && !(examHistory || []).some(h => h.examId === m.examId))
+    .map(m => ({
+      id: m.examId,
+      title: m.examTitle || 'Exam',
+      subject: '',
+      startedTime: m.startTime,
+      remainingTime: `Until ${m.endTime}`,
+      questionsAnswered: 0,
+      questionsRemaining: 0,
+      totalQuestions: 0,
+      progress: 0,
+    }));
 
   // Filter out the exam if it's currently marked as completed or terminated in the store
   const activeExams = allActiveExams.filter(

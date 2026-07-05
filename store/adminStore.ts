@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Student, Question, Exam, Schedule, Result } from '@/types/admin';
+import { Student, Question, Exam, ExamMapping, Result } from '@/types/admin';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -7,14 +7,14 @@ interface AdminState {
   students: Student[];
   questions: Question[];
   exams: Exam[];
-  schedules: Schedule[];
+  examMappings: ExamMapping[];
   results: Result[];
   isLoading: boolean;
 
-  // Students
-  fetchStudents: () => Promise<void>;
+  // Students — scoped to a Class
+  fetchStudents: (classId: string) => Promise<void>;
   addStudent: (student: Omit<Student, 'id' | 'createdAt'>) => Promise<void>;
-  importStudentsFromFile: (file: File) => Promise<number>;
+  importStudentsFromFile: (file: File, classId: string) => Promise<number>;
   updateStudent: (id: string, student: Partial<Student>) => Promise<void>;
   deleteStudent: (id: string) => Promise<void>;
 
@@ -24,19 +24,19 @@ interface AdminState {
   updateExam: (id: string, exam: Partial<Exam>) => Promise<void>;
   deleteExam: (id: string) => Promise<void>;
 
-  // Questions
-  fetchQuestions: () => Promise<void>;
-  addQuestion: (data: Question) => Promise<void>;
-  addQuestions: (data: Question[]) => Promise<void>;
-  importQuestionsFromFile: (file: File, meta: { subject: string; marks?: number; difficulty?: string; type?: string }) => Promise<number>;
-  updateQuestion: (id: string, data: Partial<Question>) => Promise<void>;
-  deleteQuestion: (id: string) => Promise<void>;
+  // Questions — scoped to an Exam (no shared question bank)
+  fetchQuestions: (examId: string) => Promise<void>;
+  addQuestion: (examId: string, data: Question) => Promise<void>;
+  addQuestions: (examId: string, data: Question[]) => Promise<void>;
+  importQuestionsFromFile: (examId: string, file: File, meta: { subject: string; marks?: number; difficulty?: string; type?: string }) => Promise<number>;
+  updateQuestion: (examId: string, id: string, data: Partial<Question>) => Promise<void>;
+  deleteQuestion: (examId: string, id: string) => Promise<void>;
 
-  // Schedules
-  fetchSchedules: () => Promise<void>;
-  addSchedule: (schedule: Omit<Schedule, 'id'>) => Promise<void>;
-  updateSchedule: (id: string, schedule: Partial<Schedule>) => Promise<void>;
-  deleteSchedule: (id: string) => Promise<void>;
+  // Exam Mappings — assigns an Exam to a Class with a date/time/hall
+  fetchExamMappings: (filter?: { examId?: string; classId?: string }) => Promise<void>;
+  addExamMapping: (mapping: Omit<ExamMapping, 'id'>) => Promise<void>;
+  updateExamMapping: (id: string, mapping: Partial<ExamMapping>) => Promise<void>;
+  deleteExamMapping: (id: string) => Promise<void>;
 
   // Results
   fetchResults: () => Promise<void>;
@@ -47,14 +47,14 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
   students: [],
   questions: [],
   exams: [],
-  schedules: [],
+  examMappings: [],
   results: [],
   isLoading: false,
 
   // Students
-  fetchStudents: async () => {
+  fetchStudents: async (classId) => {
     set({ isLoading: true });
-    const { data } = await api.get('/students');
+    const { data } = await api.get('/students', { params: { classId } });
     set({ students: data, isLoading: false });
   },
   addStudent: async (studentData) => {
@@ -63,10 +63,11 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     set((state) => ({ students: [data, ...state.students], isLoading: false }));
     toast.success('Student Added Successfully');
   },
-  importStudentsFromFile: async (file) => {
+  importStudentsFromFile: async (file, classId) => {
     set({ isLoading: true });
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('classId', classId);
     try {
       const { data } = await api.post('/students/import', formData);
       set((state) => ({ students: [...data, ...state.students], isLoading: false }));
@@ -128,24 +129,24 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
   },
 
   // Questions
-  fetchQuestions: async () => {
+  fetchQuestions: async (examId) => {
     set({ isLoading: true });
-    const { data } = await api.get('/questions');
+    const { data } = await api.get(`/exams/${examId}/questions`);
     set({ questions: data, isLoading: false });
   },
-  addQuestion: async (questionData) => {
+  addQuestion: async (examId, questionData) => {
     set({ isLoading: true });
-    const { data } = await api.post('/questions', questionData);
+    const { data } = await api.post(`/exams/${examId}/questions`, questionData);
     set((state) => ({ questions: [data, ...state.questions], isLoading: false }));
     toast.success('Question Added Successfully');
   },
-  addQuestions: async (questionsData) => {
+  addQuestions: async (examId, questionsData) => {
     set({ isLoading: true });
-    const { data } = await api.post('/questions/bulk', { questions: questionsData });
+    const { data } = await api.post(`/exams/${examId}/questions/bulk`, { questions: questionsData });
     set((state) => ({ questions: [...data, ...state.questions], isLoading: false }));
     toast.success(`${data.length} Questions Added Successfully`);
   },
-  importQuestionsFromFile: async (file, meta) => {
+  importQuestionsFromFile: async (examId, file, meta) => {
     set({ isLoading: true });
     const formData = new FormData();
     formData.append('file', file);
@@ -155,7 +156,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     if (meta.type) formData.append('type', meta.type);
 
     try {
-      const { data } = await api.post('/questions/import', formData);
+      const { data } = await api.post(`/exams/${examId}/questions/import`, formData);
       set((state) => ({ questions: [...data, ...state.questions], isLoading: false }));
       toast.success(`${data.length} Questions Imported Successfully`);
       return data.length;
@@ -164,18 +165,18 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       throw err;
     }
   },
-  updateQuestion: async (id, data) => {
+  updateQuestion: async (examId, id, data) => {
     set({ isLoading: true });
-    const { data: updated } = await api.patch(`/questions/${id}`, data);
+    const { data: updated } = await api.patch(`/exams/${examId}/questions/${id}`, data);
     set((state) => ({
       questions: state.questions.map((q) => (q.id === id ? updated : q)),
       isLoading: false,
     }));
     toast.success('Question Updated Successfully');
   },
-  deleteQuestion: async (id) => {
+  deleteQuestion: async (examId, id) => {
     set({ isLoading: true });
-    await api.delete(`/questions/${id}`);
+    await api.delete(`/exams/${examId}/questions/${id}`);
     set((state) => ({
       questions: state.questions.filter((q) => q.id !== id),
       isLoading: false,
@@ -183,35 +184,38 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     toast.success('Question Deleted Successfully');
   },
 
-  // Schedules
-  fetchSchedules: async () => {
+  // Exam Mappings
+  fetchExamMappings: async (filter) => {
     set({ isLoading: true });
-    const { data } = await api.get('/schedules');
-    set({ schedules: data, isLoading: false });
+    const { data } = await api.get('/exam-mappings', { params: filter });
+    set({ examMappings: data, isLoading: false });
   },
-  addSchedule: async (scheduleData) => {
+  addExamMapping: async (mappingData) => {
     set({ isLoading: true });
-    const { data } = await api.post('/schedules', scheduleData);
-    set((state) => ({ schedules: [data, ...state.schedules], isLoading: false }));
-    toast.success('Schedule Created Successfully');
-  },
-  updateSchedule: async (id, data) => {
-    set({ isLoading: true });
-    const { data: updated } = await api.patch(`/schedules/${id}`, data);
+    const { data } = await api.post('/exam-mappings', mappingData);
     set((state) => ({
-      schedules: state.schedules.map((s) => (s.id === id ? updated : s)),
+      examMappings: [data, ...state.examMappings.filter((m) => m.id !== data.id)],
       isLoading: false,
     }));
-    toast.success('Schedule Updated Successfully');
+    toast.success('Exam Mapped Successfully');
   },
-  deleteSchedule: async (id) => {
+  updateExamMapping: async (id, data) => {
     set({ isLoading: true });
-    await api.delete(`/schedules/${id}`);
+    const { data: updated } = await api.patch(`/exam-mappings/${id}`, data);
     set((state) => ({
-      schedules: state.schedules.filter((s) => s.id !== id),
+      examMappings: state.examMappings.map((m) => (m.id === id ? updated : m)),
       isLoading: false,
     }));
-    toast.success('Schedule Cancelled Successfully');
+    toast.success('Exam Mapping Updated Successfully');
+  },
+  deleteExamMapping: async (id) => {
+    set({ isLoading: true });
+    await api.delete(`/exam-mappings/${id}`);
+    set((state) => ({
+      examMappings: state.examMappings.filter((m) => m.id !== id),
+      isLoading: false,
+    }));
+    toast.success('Exam Mapping Removed Successfully');
   },
 
   // Results

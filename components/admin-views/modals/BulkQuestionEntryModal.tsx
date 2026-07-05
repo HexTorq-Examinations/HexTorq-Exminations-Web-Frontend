@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 interface BulkQuestionEntryModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  examId: string;
 }
 
 const defaultQuestion: Question = {
@@ -24,7 +25,7 @@ const defaultQuestion: Question = {
   correctAnswer: 0,
 };
 
-export function BulkQuestionEntryModal({ open, onOpenChange }: BulkQuestionEntryModalProps) {
+export function BulkQuestionEntryModal({ open, onOpenChange, examId }: BulkQuestionEntryModalProps) {
   const { addQuestions, isLoading } = useAdminStore();
   
   const [questions, setQuestions] = useState<Question[]>([ { ...defaultQuestion } ]);
@@ -124,7 +125,7 @@ export function BulkQuestionEntryModal({ open, onOpenChange }: BulkQuestionEntry
       return;
     }
 
-    await addQuestions(questions);
+    await addQuestions(examId, questions);
     onOpenChange(false);
   };
 
@@ -134,7 +135,7 @@ export function BulkQuestionEntryModal({ open, onOpenChange }: BulkQuestionEntry
         <DialogHeader className="px-6 py-4 shrink-0 border-b border-slate-100 dark:border-slate-800">
           <DialogTitle>Bulk Manual Question Entry</DialogTitle>
           <DialogDescription>
-            Add multiple questions in a single session. They will be saved to the Question Bank simultaneously.
+            Add multiple questions in a single session. They will be added to this exam simultaneously.
           </DialogDescription>
         </DialogHeader>
 
