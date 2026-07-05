@@ -139,7 +139,7 @@ export default function AdminStudents() {
 
       {!selectedBatchId ? (
         <EmptyState
-          icon={FolderOpen}
+          icon={<FolderOpen className="h-10 w-10" />}
           title="No Batch Selected"
           description="Please create or select a batch from the top navigation bar to start managing your academic hierarchy."
         />
