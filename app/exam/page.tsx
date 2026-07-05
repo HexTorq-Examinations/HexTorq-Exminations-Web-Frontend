@@ -10,6 +10,7 @@ import { Camera, Mic, Monitor, Wifi, Calculator, AlertTriangle, ChevronRight, Ch
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '@/lib/api';
 import { NetworkPing } from '@/components/common/NetworkPing';
+import { FloatingCalculator } from '@/components/common/FloatingCalculator';
 
 interface ExamQuestion {
   id: string;
@@ -33,6 +34,9 @@ function SecureExamInterface() {
   const [lastViolationCount, setLastViolationCount] = useState(0);
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
   const [isLoadingExam, setIsLoadingExam] = useState(true);
+  
+  const [markedForReview, setMarkedForReview] = useState<Set<string>>(new Set());
+  const [showCalculator, setShowCalculator] = useState(false);
 
   // Clear session if opening a different exam
   useEffect(() => {
@@ -233,8 +237,31 @@ function SecureExamInterface() {
           <div className="flex justify-between items-center mb-4 md:mb-6">
             <h2 className="text-2xl font-bold text-slate-900">Question {currentQuestionIdx + 1}</h2>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="bg-white px-2 md:px-3 text-xs md:text-sm"><Calculator className="w-4 h-4 md:mr-2" /><span className="hidden md:inline">Calculator</span></Button>
-              <Button variant="outline" size="sm" className="bg-white text-amber-600 border-amber-200 hover:bg-amber-50 px-2 md:px-3 text-xs md:text-sm"><Flag className="w-4 h-4 md:mr-2" /><span className="hidden md:inline">Mark for Review</span></Button>
+              <Button variant="outline" size="sm" onClick={() => setShowCalculator(!showCalculator)} className="bg-white px-2 md:px-3 text-xs md:text-sm">
+                <Calculator className="w-4 h-4 md:mr-2" />
+                <span className="hidden md:inline">Calculator</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  if (!currentQuestion) return;
+                  setMarkedForReview(prev => {
+                    const next = new Set(prev);
+                    if (next.has(currentQuestion.id)) next.delete(currentQuestion.id);
+                    else next.add(currentQuestion.id);
+                    return next;
+                  });
+                }}
+                className={`bg-white border-amber-200 hover:bg-amber-50 px-2 md:px-3 text-xs md:text-sm transition-colors ${
+                  currentQuestion && markedForReview.has(currentQuestion.id) ? 'bg-amber-100 text-amber-700 font-bold' : 'text-amber-600'
+                }`}
+              >
+                <Flag className="w-4 h-4 md:mr-2" />
+                <span className="hidden md:inline">
+                  {currentQuestion && markedForReview.has(currentQuestion.id) ? 'Marked' : 'Mark for Review'}
+                </span>
+              </Button>
             </div>
           </div>
 
@@ -303,9 +330,11 @@ function SecureExamInterface() {
                   className={`h-10 rounded-md text-sm font-semibold transition-all border ${
                     isCurrent ? 'ring-2 ring-blue-600 ring-offset-1 border-transparent' : ''
                   } ${
-                    isAnswered
-                      ? 'bg-green-500 text-white border-green-600'
-                      : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
+                    markedForReview.has(q.id)
+                      ? 'bg-amber-500 text-white border-amber-600'
+                      : isAnswered
+                        ? 'bg-green-500 text-white border-green-600'
+                        : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
                   }`}
                 >
                   {i + 1}
@@ -325,11 +354,13 @@ function SecureExamInterface() {
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2"><div className="w-4 h-4 bg-amber-500 rounded-sm"></div> Marked</div>
-              <span>0</span>
+              <span>{markedForReview.size}</span>
             </div>
           </div>
         </aside>
       </div>
+      
+      <FloatingCalculator isOpen={showCalculator} onClose={() => setShowCalculator(false)} />
 
       {/* Security Warning Overlay (Blocks UI when isPaused is true) */}
       <AnimatePresence>
