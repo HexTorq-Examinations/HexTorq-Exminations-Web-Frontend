@@ -56,18 +56,28 @@ export const useSuperAdminStore = create<SuperAdminState>()((set, get) => ({
   },
   addAdmin: async (adminData) => {
     set({ isLoading: true });
-    const { data } = await api.post('/admins', adminData);
-    set((state) => ({ admins: [data, ...state.admins], isLoading: false }));
-    toast.success('Admin Added Successfully');
+    try {
+      const { data } = await api.post('/admins', adminData);
+      set((state) => ({ admins: [data, ...state.admins], isLoading: false }));
+      toast.success('Admin Added Successfully');
+    } catch (error) {
+      set({ isLoading: false });
+      throw error;
+    }
   },
   updateAdmin: async (id, data) => {
     set({ isLoading: true });
-    const { data: updated } = await api.patch(`/admins/${id}`, data);
-    set((state) => ({
-      admins: state.admins.map((a) => (a.id === id ? updated : a)),
-      isLoading: false,
-    }));
-    toast.success('Admin Updated Successfully');
+    try {
+      const { data: updated } = await api.patch(`/admins/${id}`, data);
+      set((state) => ({
+        admins: state.admins.map((a) => (a.id === id ? updated : a)),
+        isLoading: false,
+      }));
+      toast.success('Admin Updated Successfully');
+    } catch (error) {
+      set({ isLoading: false });
+      throw error;
+    }
   },
   deleteAdmin: async (id) => {
     set({ isLoading: true });
@@ -87,9 +97,14 @@ export const useSuperAdminStore = create<SuperAdminState>()((set, get) => ({
   },
   addOrganization: async (orgData) => {
     set({ isLoading: true });
-    const { data } = await api.post('/organizations', orgData);
-    set((state) => ({ organizations: [data, ...state.organizations], isLoading: false }));
-    toast.success('Organization Added Successfully');
+    try {
+      const { data } = await api.post('/organizations', orgData);
+      set((state) => ({ organizations: [data, ...state.organizations], isLoading: false }));
+      toast.success('Organization Added Successfully');
+    } catch (error) {
+      set({ isLoading: false });
+      throw error;
+    }
   },
   updateOrganization: async (id, data) => {
     set({ isLoading: true });

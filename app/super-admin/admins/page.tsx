@@ -73,16 +73,20 @@ export default function AdminsPage() {
     if (!form.name || !form.email) { toast.error('Name and email are required'); return; }
     if (form.role === 'Admin' && !form.organizationId) { toast.error('Please select an organization for this Admin'); return; }
 
-    if (editAdmin) {
-      await updateAdmin(editAdmin.id, form);
-    } else {
-      await addAdmin({
-        ...form,
-        employeeId: form.employeeId || `EMP-${Math.floor(Math.random() * 1000)}`,
-        status: 'Active'
-      });
+    try {
+      if (editAdmin) {
+        await updateAdmin(editAdmin.id, form);
+      } else {
+        await addAdmin({
+          ...form,
+          employeeId: form.employeeId || `EMP-${Math.floor(Math.random() * 1000)}`,
+          status: 'Active'
+        });
+      }
+      setAddOpen(false);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'An error occurred. Please try again.');
     }
-    setAddOpen(false);
   };
 
   const handleDelete = async () => {
@@ -96,9 +100,13 @@ export default function AdminsPage() {
       toast.error('Please fill in all required fields');
       return;
     }
-    await addOrganization({ ...orgForm, plan: 'Basic', status: 'Active' });
-    setOrgForm({ name: '', code: '', adminEmail: '', domain: '' });
-    setAddOrgOpen(false);
+    try {
+      await addOrganization({ ...orgForm, plan: 'Basic', status: 'Active' });
+      setOrgForm({ name: '', code: '', adminEmail: '', domain: '' });
+      setAddOrgOpen(false);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'An error occurred while creating the organization.');
+    }
   };
 
   const handleToggleStatus = async (admin: AdminUser) => {
