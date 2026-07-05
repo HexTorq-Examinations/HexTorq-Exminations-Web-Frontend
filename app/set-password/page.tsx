@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
+import { PasswordStrength } from '@/components/common/PasswordStrength';
 
 function SetPasswordForm() {
   const searchParams = useSearchParams();
@@ -92,6 +93,7 @@ function SetPasswordForm() {
           disabled={isLoading}
           required
         />
+        <PasswordStrength password={password} className="mt-2" />
       </div>
       <div className="space-y-2">
         <Label htmlFor="confirmPassword">Confirm Password</Label>
