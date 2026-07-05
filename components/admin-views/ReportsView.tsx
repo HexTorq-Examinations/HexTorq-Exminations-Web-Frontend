@@ -11,6 +11,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart as RechartsBarChart, Bar
 } from 'recharts';
 import { api } from '@/lib/api';
+import { useAcademicStore } from '@/store/academicStore';
 
 interface ReportsViewProps {
   role: 'admin' | 'super-admin';
@@ -18,11 +19,13 @@ interface ReportsViewProps {
 
 export function ReportsView({ role }: ReportsViewProps) {
   const isSuperAdmin = role === 'super-admin';
+  const { selectedBatchId } = useAcademicStore();
   const [studentsByDepartment, setStudentsByDepartment] = useState<{ name: string; students: number }[]>([]);
 
   useEffect(() => {
-    api.get('/dashboard/overview').then(({ data }) => setStudentsByDepartment(data.studentsByDepartment || []));
-  }, []);
+    const params = !isSuperAdmin && selectedBatchId ? { batchId: selectedBatchId } : {};
+    api.get('/dashboard/overview', { params }).then(({ data }) => setStudentsByDepartment(data.studentsByDepartment || []));
+  }, [isSuperAdmin, selectedBatchId]);
 
   const handleExport = () => {
     // Simulate CSV download

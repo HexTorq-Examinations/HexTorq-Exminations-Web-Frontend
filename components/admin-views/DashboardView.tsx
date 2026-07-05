@@ -7,6 +7,7 @@ import { Users, GraduationCap, ClipboardCheck, Activity, Database, CalendarIcon,
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend, PieChart, Pie, Cell } from 'recharts';
 import { useAdminStore } from '@/store/adminStore';
 import { useSuperAdminStore } from '@/store/superAdminStore';
+import { useAcademicStore } from '@/store/academicStore';
 import { api } from '@/lib/api';
 
 interface DashboardViewProps {
@@ -40,6 +41,7 @@ interface StatsData {
   activeExams: number;
   totalAdmins?: number;
   totalOrganizations?: number;
+  publishedResults?: number;
 }
 
 const timeAgo = (iso: string) => {
@@ -55,8 +57,9 @@ const timeAgo = (iso: string) => {
 
 export function DashboardView({ role }: DashboardViewProps) {
   const isSuperAdmin = role === 'super-admin';
-  const { exams, results, fetchExams, fetchResults } = useAdminStore();
+  const { fetchExams, fetchResults } = useAdminStore();
   const { admins, fetchAdmins } = useSuperAdminStore();
+  const { selectedBatchId } = useAcademicStore();
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [stats, setStats] = useState<StatsData | null>(null);
   const [isLoadingOverview, setIsLoadingOverview] = useState(true);
@@ -67,12 +70,15 @@ export function DashboardView({ role }: DashboardViewProps) {
     if (isSuperAdmin) fetchAdmins();
   }, [fetchExams, fetchResults, fetchAdmins, isSuperAdmin]);
 
+  // Re-fetch both stats endpoints whenever the Admin switches batches in the navbar,
+  // so every tile/chart on this page reflects the selected batch.
   useEffect(() => {
     let cancelled = false;
     setIsLoadingOverview(true);
+    const batchParams = !isSuperAdmin && selectedBatchId ? { batchId: selectedBatchId } : {};
     Promise.all([
-      api.get('/dashboard/overview'),
-      api.get(isSuperAdmin ? '/dashboard/super-admin' : '/dashboard/admin'),
+      api.get('/dashboard/overview', { params: batchParams }),
+      api.get(isSuperAdmin ? '/dashboard/super-admin' : '/dashboard/admin', { params: batchParams }),
     ])
       .then(([overviewRes, statsRes]) => {
         if (cancelled) return;
@@ -81,15 +87,15 @@ export function DashboardView({ role }: DashboardViewProps) {
       })
       .finally(() => { if (!cancelled) setIsLoadingOverview(false); });
     return () => { cancelled = true; };
-  }, [isSuperAdmin]);
+  }, [isSuperAdmin, selectedBatchId]);
 
   // Shared stats
   const statTiles = [
     ...(isSuperAdmin ? [{ title: 'Total Admins', value: (stats?.totalAdmins ?? admins.length).toString(), icon: Users, color: 'text-purple-600', bg: 'bg-purple-100' }] : []),
     { title: 'Total Students', value: (stats?.totalStudents ?? 0).toLocaleString(), icon: GraduationCap, color: 'text-blue-600', bg: 'bg-blue-100' },
-    { title: 'Total Exams', value: exams.length.toLocaleString(), icon: ClipboardCheck, color: 'text-emerald-600', bg: 'bg-emerald-100' },
+    { title: 'Total Exams', value: (stats?.totalExams ?? 0).toLocaleString(), icon: ClipboardCheck, color: 'text-emerald-600', bg: 'bg-emerald-100' },
     { title: 'Active Exams', value: (stats?.activeExams ?? 0).toString(), icon: Activity, color: 'text-pink-600', bg: 'bg-pink-100' },
-    { title: 'Published Results', value: results.length.toLocaleString(), icon: BarChart2, color: 'text-teal-600', bg: 'bg-teal-100' },
+    { title: 'Published Results', value: (stats?.publishedResults ?? 0).toLocaleString(), icon: BarChart2, color: 'text-teal-600', bg: 'bg-teal-100' },
     { title: 'Batches', value: (overview?.totalBatches ?? 0).toString(), icon: Layers, color: 'text-indigo-600', bg: 'bg-indigo-100' },
     { title: 'Schools', value: (overview?.totalSchools ?? 0).toString(), icon: School, color: 'text-cyan-600', bg: 'bg-cyan-100' },
     { title: 'Departments', value: (overview?.totalDepartments ?? 0).toString(), icon: Building2, color: 'text-orange-600', bg: 'bg-orange-100' },
