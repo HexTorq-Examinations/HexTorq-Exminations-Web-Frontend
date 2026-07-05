@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
-import { Users, UserPlus, UserCheck, Clock, Search, Filter, Download, MoreVertical, Edit, Trash2, Plus } from 'lucide-react';
+import { Users, UserPlus, UserCheck, Clock, Search, Filter, Download, MoreVertical, Edit, Trash2, Plus, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,7 +23,7 @@ import { toast } from 'sonner';
 import { useSuperAdminStore, AdminUser } from '@/store/superAdminStore';
 
 export default function AdminsPage() {
-  const { admins, fetchAdmins, addAdmin, updateAdmin, deleteAdmin, organizations, fetchOrganizations, addOrganization } = useSuperAdminStore();
+  const { admins, fetchAdmins, addAdmin, updateAdmin, deleteAdmin, organizations, fetchOrganizations, addOrganization, isLoading } = useSuperAdminStore();
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -301,8 +301,9 @@ export default function AdminsPage() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} className="bg-purple-600 hover:bg-purple-700 text-white">
+            <Button variant="outline" onClick={() => setAddOpen(false)} disabled={isLoading}>Cancel</Button>
+            <Button onClick={handleSave} disabled={isLoading} className="bg-purple-600 hover:bg-purple-700 text-white">
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {editAdmin ? 'Save Changes' : 'Add Admin'}
             </Button>
           </DialogFooter>
@@ -332,20 +333,23 @@ export default function AdminsPage() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Organization Name *</Label>
-              <Input placeholder="e.g. NorthState University" value={orgForm.name} onChange={e => setOrgForm(f => ({ ...f, name: e.target.value }))} />
+              <Input placeholder="e.g. NorthState University" value={orgForm.name} onChange={e => setOrgForm(f => ({ ...f, name: e.target.value }))} disabled={isLoading} />
             </div>
             <div className="space-y-2">
               <Label>Organization Code *</Label>
-              <Input placeholder="e.g. NSU-001" value={orgForm.code} onChange={e => setOrgForm(f => ({ ...f, code: e.target.value }))} />
+              <Input placeholder="e.g. NSU-001" value={orgForm.code} onChange={e => setOrgForm(f => ({ ...f, code: e.target.value }))} disabled={isLoading} />
             </div>
             <div className="space-y-2">
               <Label>Admin Email *</Label>
-              <Input type="email" placeholder="admin@org.edu" value={orgForm.adminEmail} onChange={e => setOrgForm(f => ({ ...f, adminEmail: e.target.value }))} />
+              <Input type="email" placeholder="admin@org.edu" value={orgForm.adminEmail} onChange={e => setOrgForm(f => ({ ...f, adminEmail: e.target.value }))} disabled={isLoading} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddOrgOpen(false)}>Cancel</Button>
-            <Button onClick={handleAddOrg} className="bg-purple-600 hover:bg-purple-700 text-white">Create</Button>
+            <Button variant="outline" onClick={() => setAddOrgOpen(false)} disabled={isLoading}>Cancel</Button>
+            <Button onClick={handleAddOrg} disabled={isLoading} className="bg-purple-600 hover:bg-purple-700 text-white">
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Create
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
