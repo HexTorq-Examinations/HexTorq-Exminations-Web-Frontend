@@ -146,7 +146,7 @@ export function FileImportQuestionsModal({ open, onOpenChange }: FileImportQuest
             </div>
             <div className="space-y-2 col-span-2">
               <Label>Default Difficulty</Label>
-              <Select value={difficulty} onValueChange={setDifficulty}>
+              <Select value={difficulty} onValueChange={(val) => setDifficulty(val || 'Medium')}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

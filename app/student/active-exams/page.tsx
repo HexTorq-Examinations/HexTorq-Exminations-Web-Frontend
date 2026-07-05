@@ -35,7 +35,7 @@ export default function StudentActiveExams() {
 
   // Filter out the exam if it's currently marked as completed or terminated in the store
   const activeExams = allActiveExams.filter(
-    (exam) => !(examId === exam.id.toString() && (status === 'COMPLETED' || status === 'TERMINATED'))
+    (exam) => !(examId === exam.id && (status === 'COMPLETED' || status === 'TERMINATED'))
   );
 
   const hasActive = activeExams.length > 0;
@@ -137,7 +137,7 @@ export default function StudentActiveExams() {
                       <div className="flex flex-col gap-3 min-w-[200px]">
                         <Button
                           className="w-full h-12 text-md font-bold bg-blue-600 hover:bg-blue-700 shadow-blue-500/25 shadow-lg"
-                          onClick={() => router.push(`/exam/${exam.id}`)}
+                          onClick={() => router.push(`/exam?id=${exam.id}`)}
                         >
                           <PlayCircle className="mr-2 h-5 w-5" /> Resume Exam
                         </Button>

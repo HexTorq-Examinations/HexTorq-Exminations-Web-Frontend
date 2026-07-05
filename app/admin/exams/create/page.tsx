@@ -41,6 +41,7 @@ export default function CreateExamPage() {
       questions: formData.questions,
       assigned: 0,
       shuffleQuestions: false,
+      shuffleOptions: false,
       negativeMarking: false
     });
     

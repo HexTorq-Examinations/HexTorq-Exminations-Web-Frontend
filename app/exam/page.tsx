@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useExamStore } from '@/store/examStore';
 import { useProctoring } from '@/hooks/useProctoring';
 import { Button } from '@/components/ui/button';
@@ -16,10 +16,10 @@ interface ExamQuestion {
   options: string[];
 }
 
-export default function SecureExamInterface() {
+function SecureExamInterface() {
   const router = useRouter();
-  const params = useParams();
-  const currentExamId = params.id as string;
+  const searchParams = useSearchParams();
+  const currentExamId = searchParams.get('id') || '';
   const {
     status, examId: storeExamId, startExam, endExam, timeRemaining, tickTimer, answers, saveAnswer,
     violations, clearSession, isPaused, setIsPaused, isOnline, unsyncedQuestionIds,
@@ -42,6 +42,7 @@ export default function SecureExamInterface() {
 
   // Load the exam's real question set
   useEffect(() => {
+    if (!currentExamId) return;
     let cancelled = false;
     setIsLoadingExam(true);
     api.get(`/exams/${currentExamId}/take`)
@@ -93,6 +94,17 @@ export default function SecureExamInterface() {
   };
 
   const currentQuestion = questions[currentQuestionIdx];
+
+  if (!currentExamId) {
+    return (
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-900 text-white p-6 text-center">
+        <AlertTriangle className="w-12 h-12 text-amber-400 mb-4" />
+        <h2 className="text-xl font-bold mb-2">No exam selected</h2>
+        <p className="text-slate-400 mb-6">This page needs an exam to load, e.g. /exam?id=&lt;examId&gt;.</p>
+        <Button onClick={() => router.push('/student/active-exams')}>Back to Active Exams</Button>
+      </div>
+    );
+  }
 
   if (isLoadingExam) {
     return (
@@ -162,7 +174,7 @@ export default function SecureExamInterface() {
 
   return (
     <div className="h-screen w-screen bg-slate-50 flex flex-col overflow-hidden select-none">
-      
+
       {/* Top Security & Info Bar */}
       <header className="h-14 bg-[#1E3A8A] text-white flex items-center justify-between px-4 md:px-6 shadow-md z-10 shrink-0">
         <div className="flex items-center gap-2 md:gap-6">
@@ -203,7 +215,7 @@ export default function SecureExamInterface() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        
+
         {/* Left: Question Panel */}
         <main className="flex-1 flex flex-col p-4 md:p-6 overflow-y-auto">
           <div className="flex justify-between items-center mb-4 md:mb-6">
@@ -213,23 +225,23 @@ export default function SecureExamInterface() {
               <Button variant="outline" size="sm" className="bg-white text-amber-600 border-amber-200 hover:bg-amber-50 px-2 md:px-3 text-xs md:text-sm"><Flag className="w-4 h-4 md:mr-2" /><span className="hidden md:inline">Mark for Review</span></Button>
             </div>
           </div>
-          
+
           <Card className="flex-1 p-4 md:p-8 shadow-sm border-slate-200 bg-white">
             <p className="text-base md:text-lg text-slate-800 leading-relaxed mb-6 md:mb-8">{currentQuestion.text}</p>
-            
+
             <div className="space-y-3">
               {currentQuestion.options.map((opt, i) => {
                 const isSelected = answers[currentQuestion.id] === opt;
                 return (
-                  <label 
-                    key={i} 
+                  <label
+                    key={i}
                     className={`flex items-center p-4 border rounded-lg cursor-pointer transition-all ${
                       isSelected ? 'border-blue-500 bg-blue-50/50 ring-1 ring-blue-500' : 'border-slate-200 hover:border-blue-300 hover:bg-slate-50'
                     }`}
                   >
-                    <input 
-                      type="radio" 
-                      name={currentQuestion.id} 
+                    <input
+                      type="radio"
+                      name={currentQuestion.id}
                       className="w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-600"
                       checked={isSelected}
                       onChange={() => saveAnswer(currentQuestion.id, opt)}
@@ -240,20 +252,20 @@ export default function SecureExamInterface() {
               })}
             </div>
           </Card>
-          
+
           {/* Navigation Footer */}
           <div className="flex justify-between items-center mt-6">
-            <Button 
-              variant="outline" 
-              size="lg" 
+            <Button
+              variant="outline"
+              size="lg"
               onClick={() => setCurrentQuestionIdx(prev => Math.max(0, prev - 1))}
               disabled={currentQuestionIdx === 0}
               className="bg-white text-xs md:text-sm px-3 md:px-8"
             >
               <ChevronLeft className="w-4 h-4 md:w-5 md:h-5 mr-1" /> Previous
             </Button>
-            <Button 
-              size="lg" 
+            <Button
+              size="lg"
               className="bg-blue-600 hover:bg-blue-700 text-xs md:text-sm px-3 md:px-8"
               onClick={() => setCurrentQuestionIdx(prev => Math.min(questions.length - 1, prev + 1))}
               disabled={currentQuestionIdx === questions.length - 1}
@@ -266,12 +278,12 @@ export default function SecureExamInterface() {
         {/* Right: Question Palette */}
         <aside className="w-full lg:w-80 bg-white border-t lg:border-t-0 lg:border-l border-slate-200 p-4 md:p-6 flex flex-col shrink-0 shadow-[-4px_0_24px_rgba(0,0,0,0.02)] overflow-y-auto max-h-[30vh] lg:max-h-none">
           <h3 className="font-bold text-slate-900 mb-4">Question Palette</h3>
-          
+
           <div className="grid grid-cols-4 gap-2 mb-8">
             {questions.map((q, i) => {
               const isAnswered = !!answers[q.id];
               const isCurrent = currentQuestionIdx === i;
-              
+
               return (
                 <button
                   key={q.id}
@@ -279,8 +291,8 @@ export default function SecureExamInterface() {
                   className={`h-10 rounded-md text-sm font-semibold transition-all border ${
                     isCurrent ? 'ring-2 ring-blue-600 ring-offset-1 border-transparent' : ''
                   } ${
-                    isAnswered 
-                      ? 'bg-green-500 text-white border-green-600' 
+                    isAnswered
+                      ? 'bg-green-500 text-white border-green-600'
                       : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
                   }`}
                 >
@@ -310,13 +322,13 @@ export default function SecureExamInterface() {
       {/* Security Warning Overlay (Blocks UI when isPaused is true) */}
       <AnimatePresence>
         {isPaused && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950 backdrop-blur-md select-none"
           >
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
@@ -338,8 +350,8 @@ export default function SecureExamInterface() {
                   You must return to fullscreen mode to continue your exam. Do not leave the exam window.
                 </p>
                 <div className="pt-4 flex flex-col gap-3">
-                  <Button 
-                    size="lg" 
+                  <Button
+                    size="lg"
                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-14 text-lg"
                     onClick={async () => {
                       try {
@@ -352,8 +364,8 @@ export default function SecureExamInterface() {
                   >
                     Return to Fullscreen
                   </Button>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     className="w-full text-slate-500 hover:text-red-400 hover:bg-red-500/10"
                     onClick={() => endExam('COMPLETED')}
                   >
@@ -366,5 +378,17 @@ export default function SecureExamInterface() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+export default function ExamPage() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen w-screen flex items-center justify-center bg-slate-900">
+        <div className="h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <SecureExamInterface />
+    </Suspense>
   );
 }

@@ -141,7 +141,7 @@ export default function SystemCheckPage() {
           <Button 
             className="bg-blue-600 hover:bg-blue-700 text-white min-w-[140px]" 
             disabled={!allChecksPassed}
-            onClick={() => router.push(`/exam/${examId}`)}
+            onClick={() => router.push(`/exam?id=${examId}`)}
           >
             Start Exam
           </Button>

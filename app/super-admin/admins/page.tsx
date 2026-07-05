@@ -31,12 +31,12 @@ export default function AdminsPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [editAdmin, setEditAdmin] = useState<AdminUser | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', email: '', phone: '', empId: '' });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', employeeId: '' });
 
   const filtered = admins.filter(a =>
     a.name.toLowerCase().includes(search.toLowerCase()) ||
     a.email.toLowerCase().includes(search.toLowerCase()) ||
-    a.empId.toLowerCase().includes(search.toLowerCase())
+    a.employeeId.toLowerCase().includes(search.toLowerCase())
   );
 
   const stats = [
@@ -47,13 +47,13 @@ export default function AdminsPage() {
   ];
 
   const openAdd = () => {
-    setForm({ name: '', email: '', phone: '', empId: '' });
+    setForm({ name: '', email: '', phone: '', employeeId: '' });
     setEditAdmin(null);
     setAddOpen(true);
   };
 
   const openEdit = (admin: any) => {
-    setForm({ name: admin.name, email: admin.email, phone: admin.phone, empId: admin.empId });
+    setForm({ name: admin.name, email: admin.email, phone: admin.phone, employeeId: admin.employeeId });
     setEditAdmin(admin);
     setAddOpen(true);
   };
@@ -65,7 +65,7 @@ export default function AdminsPage() {
     } else {
       await addAdmin({
         ...form,
-        empId: form.empId || `EMP-${Math.floor(Math.random() * 1000)}`,
+        employeeId: form.employeeId || `EMP-${Math.floor(Math.random() * 1000)}`,
         role: 'Admin', 
         status: 'Active'
       });
@@ -84,7 +84,7 @@ export default function AdminsPage() {
   };
 
   const handleExport = () => {
-    const csv = ['Name,Employee ID,Email,Phone,Status', ...admins.map(a => `${a.name},${a.empId},${a.email},${a.phone},${a.status}`)].join('\n');
+    const csv = ['Name,Employee ID,Email,Phone,Status', ...admins.map(a => `${a.name},${a.employeeId},${a.email},${a.phone},${a.status}`)].join('\n');
     const link = document.createElement('a');
     link.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
     link.setAttribute('download', 'admins.csv');
@@ -167,7 +167,7 @@ export default function AdminsPage() {
               ) : filtered.map((admin) => (
                 <TableRow key={admin.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/50">
                   <TableCell className="font-semibold text-slate-900 dark:text-slate-100">{admin.name}</TableCell>
-                  <TableCell className="text-slate-500 font-mono text-xs">{admin.empId}</TableCell>
+                  <TableCell className="text-slate-500 font-mono text-xs">{admin.employeeId}</TableCell>
                   <TableCell>
                     <div className="flex flex-col">
                       <span className="text-sm text-slate-900 dark:text-slate-100">{admin.email}</span>
@@ -237,7 +237,7 @@ export default function AdminsPage() {
               </div>
               <div className="space-y-2">
                 <Label>Employee ID</Label>
-                <Input placeholder="EMP-001" value={form.empId} onChange={e => setForm(f => ({ ...f, empId: e.target.value }))} />
+                <Input placeholder="EMP-001" value={form.employeeId} onChange={e => setForm(f => ({ ...f, employeeId: e.target.value }))} />
               </div>
             </div>
           </div>
