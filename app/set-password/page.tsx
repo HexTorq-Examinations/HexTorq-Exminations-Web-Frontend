@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Eye, EyeOff, ShieldCheck, Loader2, KeyRound } from 'lucide-react';
-import { NetworkPing } from '@/components/common/NetworkPing';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { PasswordStrength } from '@/components/common/PasswordStrength';
@@ -140,7 +139,6 @@ export default function SetPasswordPage() {
           </CardContent>
         </Card>
       </div>
-      <NetworkPing />
     </div>
   );
 }

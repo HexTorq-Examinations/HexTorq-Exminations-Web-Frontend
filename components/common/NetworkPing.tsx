@@ -5,7 +5,7 @@ import { api } from '@/lib/api';
 import { Wifi } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export function NetworkPing() {
+export function NetworkPing({ variant = 'default' }: { variant?: 'default' | 'transparent' }) {
   const [ping, setPing] = useState<number | null>(null);
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export function NetworkPing() {
   if (ping === null) {
     return (
       <div 
-        className="fixed bottom-4 right-4 z-[9999] flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-lg border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-md"
+        className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50", variant === 'transparent' ? 'border-transparent bg-transparent p-0' : '')}
         title="Checking network..."
       >
         <Wifi className="w-3.5 h-3.5 text-slate-400 animate-pulse" />
@@ -51,11 +51,11 @@ export function NetworkPing() {
 
   return (
     <div 
-      className="fixed bottom-4 right-4 z-[9999] flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-lg border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-md"
+      className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50", variant === 'transparent' ? 'border-transparent bg-transparent p-0' : '')}
       title={`Network Latency: ${ping}ms`}
     >
       <Wifi className={cn("w-3.5 h-3.5", getPingColor())} />
-      <span className="text-xs font-mono font-medium text-slate-600 dark:text-slate-400">
+      <span className={cn("text-xs font-mono font-medium", variant === 'transparent' ? 'text-white' : 'text-slate-600 dark:text-slate-400')}>
         {ping}ms
       </span>
     </div>
