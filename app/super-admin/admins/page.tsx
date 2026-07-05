@@ -284,7 +284,9 @@ export default function AdminsPage() {
                 </div>
                 <Select value={form.organizationId} onValueChange={(val) => setForm(f => ({ ...f, organizationId: val || '' }))}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select an organization" />
+                    <SelectValue placeholder="Select an organization">
+                      {form.organizationId ? organizations.find(o => o.id === form.organizationId)?.name : 'Select an organization'}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {organizations.map((org) => (
