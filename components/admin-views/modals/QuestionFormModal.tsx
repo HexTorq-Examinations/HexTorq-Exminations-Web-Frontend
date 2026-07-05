@@ -18,7 +18,9 @@ interface QuestionFormModalProps {
 }
 
 export function QuestionFormModal({ open, onOpenChange, questionToEdit, examId }: QuestionFormModalProps) {
-  const { addQuestion, updateQuestion, isLoading } = useAdminStore();
+  const { addQuestion, updateQuestion, isLoading, exams } = useAdminStore();
+  const currentExam = exams.find(e => e.id === examId);
+  const uniqueSubjects = Array.from(new Set(exams.map(e => e.subject).filter(Boolean)));
   
   const { register, control, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<Question>({
     resolver: zodResolver(QuestionSchema) as any,
@@ -57,6 +59,7 @@ export function QuestionFormModal({ open, onOpenChange, questionToEdit, examId }
           marks: 1,
           options: ['', '', '', ''],
           correctAnswer: 0,
+          subject: currentExam?.subject || '',
         });
       }
     }
@@ -110,7 +113,19 @@ export function QuestionFormModal({ open, onOpenChange, questionToEdit, examId }
 
             <div className="space-y-2">
               <Label htmlFor="subject">Subject *</Label>
-              <Input id="subject" {...register('subject')} placeholder="e.g., Physics" />
+              <Select 
+                defaultValue={questionToEdit?.subject || currentExam?.subject || ''} 
+                onValueChange={(val) => setValue('subject', val)}
+              >
+                <SelectTrigger id="subject">
+                  <SelectValue placeholder="Select subject" />
+                </SelectTrigger>
+                <SelectContent>
+                  {uniqueSubjects.map((sub) => (
+                    <SelectItem key={sub} value={sub}>{sub}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {errors.subject && <p className="text-red-500 text-xs">{errors.subject.message}</p>}
             </div>
 
