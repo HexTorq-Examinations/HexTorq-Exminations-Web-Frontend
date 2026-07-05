@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { HierarchyGrid } from '@/components/admin-views/HierarchyGrid';
 import { StudentsView } from '@/components/admin-views/StudentsView';
 import { EmptyState } from '@/components/common/EmptyState';
+import { FolderOpen } from 'lucide-react';
 import { useAcademicStore } from '@/store/academicStore';
 
 type Level = 'schools' | 'departments' | 'classes' | 'students';
@@ -136,7 +137,13 @@ export default function AdminStudents() {
         }
       />
 
-      {level === 'schools' && (
+      {!selectedBatchId ? (
+        <EmptyState
+          icon={FolderOpen}
+          title="No Batch Selected"
+          description="Please create or select a batch from the top navigation bar to start managing your academic hierarchy."
+        />
+      ) : level === 'schools' && (
         <HierarchyGrid
           itemLabel="School"
           items={schools}

@@ -70,9 +70,15 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     formData.append('classId', classId);
     try {
       const { data } = await api.post('/students/import', formData);
-      set((state) => ({ students: [...data, ...state.students], isLoading: false }));
-      toast.success(`${data.length} Students Imported Successfully`);
-      return data.length;
+      set((state) => ({ students: [...data.students, ...state.students], isLoading: false }));
+      toast.success(`${data.students.length} Students Imported Successfully`);
+      
+      if (data.errors && data.errors.length > 0) {
+        const err = new Error('Some students could not be imported due to duplicate records.');
+        (err as any).rowErrors = data.errors;
+        throw err;
+      }
+      return data.students.length;
     } catch (err) {
       set({ isLoading: false });
       throw err;
