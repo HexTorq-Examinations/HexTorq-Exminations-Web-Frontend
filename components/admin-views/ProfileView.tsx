@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 
 interface ProfileViewProps {
   role: 'admin' | 'super-admin';
@@ -20,6 +20,21 @@ export function ProfileView({ role }: ProfileViewProps) {
   const isSuperAdmin = role === 'super-admin';
   const roleTitle = isSuperAdmin ? 'Super Administrator' : 'Administrator';
   const [isEditing, setIsEditing] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setAvatarPreview(url);
+      toast.success('Avatar updated successfully');
+    }
+  };
+
+  const triggerUpload = () => {
+    fileInputRef.current?.click();
+  };
 
   const handleSave = () => {
     toast.success('Profile updated successfully');
@@ -60,10 +75,23 @@ export function ProfileView({ role }: ProfileViewProps) {
             <div className="h-32 bg-gradient-to-r from-blue-600 to-purple-600"></div>
             <CardContent className="p-6 relative pt-0">
               <div className="absolute -top-12 left-6 border-4 border-white dark:border-slate-950 rounded-full bg-slate-100 dark:bg-slate-800 h-24 w-24 flex items-center justify-center shadow-sm">
-                <User className="h-10 w-10 text-slate-400" />
-                <button className="absolute bottom-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full p-1.5 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                <div className="w-full h-full rounded-full overflow-hidden flex items-center justify-center">
+                  {avatarPreview ? (
+                    <img src={avatarPreview} alt="Profile" className="h-full w-full object-cover" />
+                  ) : (
+                    <User className="h-10 w-10 text-slate-400" />
+                  )}
+                </div>
+                <button onClick={triggerUpload} className="absolute bottom-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full p-1.5 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors z-10 cursor-pointer">
                   <Upload className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
                 </button>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  className="hidden" 
+                  accept="image/*" 
+                  onChange={handleAvatarChange} 
+                />
               </div>
               
               <div className="pt-14 pb-4 border-b border-slate-100 dark:border-slate-800">
