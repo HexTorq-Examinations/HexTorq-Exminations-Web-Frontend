@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/card';
 import { Camera, Mic, Monitor, Wifi, Calculator, AlertTriangle, ChevronRight, ChevronLeft, Flag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '@/lib/api';
+import { NetworkPing } from '@/components/common/NetworkPing';
 
 interface ExamQuestion {
   id: string;

@@ -5,7 +5,6 @@ import { ThemeProvider } from '@/providers/ThemeProvider';
 import QueryProvider from '@/providers/QueryProvider';
 import { ExamSyncProvider } from '@/providers/ExamSyncProvider';
 import { Toaster } from 'sonner';
-import { NetworkPing } from '@/components/common/NetworkPing';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -31,7 +30,6 @@ export default function RootLayout({
           <QueryProvider>
             <ExamSyncProvider />
             {children}
-            <NetworkPing />
             <Toaster richColors position="top-right" />
           </QueryProvider>
         </ThemeProvider>

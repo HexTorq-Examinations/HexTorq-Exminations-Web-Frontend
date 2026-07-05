@@ -19,6 +19,7 @@ import { useAcademicStore } from '@/store/academicStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Layers, PlusCircle } from 'lucide-react';
 import { NameFormDialog } from '@/components/admin-views/modals/NameFormDialog';
+import { NetworkPing } from '@/components/common/NetworkPing';
 
 interface SidebarItem {
   name: string;
@@ -404,6 +405,7 @@ export function DashboardLayout({ children, sidebarItems, title }: DashboardLayo
           }}
         />
       )}
+      <NetworkPing />
     </div>
   );
 }
