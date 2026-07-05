@@ -13,6 +13,8 @@ import { LogOut, Settings, User, Search, Bell, MessageSquare, ChevronLeft, Chevr
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from 'next-themes';
 import { format } from 'date-fns';
+import { MessagingPanel } from '@/components/common/MessagingPanel';
+import { useMessagingStore } from '@/store/messagingStore';
 
 
 interface SidebarItem {
@@ -34,10 +36,19 @@ export function DashboardLayout({ children, sidebarItems, title }: DashboardLayo
   const { setTheme, theme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const { unreadTotal, fetchUnreadTotal, openPanel } = useMessagingStore();
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Poll for new-message/notification badge counts every 15s while the app is open.
+  useEffect(() => {
+    if (!user) return;
+    fetchUnreadTotal();
+    const interval = setInterval(fetchUnreadTotal, 15000);
+    return () => clearInterval(interval);
+  }, [user, fetchUnreadTotal]);
 
   const handleLogout = async () => {
     await logout();
@@ -226,13 +237,23 @@ export function DashboardLayout({ children, sidebarItems, title }: DashboardLayo
 
             <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block"></div>
 
-            <Button variant="ghost" size="icon" className="h-9 w-9 text-slate-500 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
+            <Button variant="ghost" size="icon" onClick={openPanel} className="h-9 w-9 text-slate-500 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 relative">
               <MessageSquare className="h-4 w-4" />
+              {unreadTotal > 0 && (
+                <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-blue-500 rounded-full border-2 border-white dark:border-[#0F172A]"></span>
+              )}
             </Button>
-            
-            <Button variant="ghost" size="icon" onClick={() => router.push(notificationsHref)} className="h-9 w-9 text-slate-500 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 relative">
+
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => user?.role === 'STUDENT' ? router.push(notificationsHref) : openPanel()}
+              className="h-9 w-9 text-slate-500 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 relative"
+            >
               <Bell className="h-4 w-4" />
-              <span className="absolute top-2 right-2.5 h-2 w-2 bg-red-500 rounded-full border-2 border-white dark:border-[#0F172A]"></span>
+              {unreadTotal > 0 && (
+                <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full border-2 border-white dark:border-[#0F172A]"></span>
+              )}
             </Button>
 
             <Button variant="ghost" size="icon" onClick={toggleTheme} className="h-9 w-9 text-slate-500 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
@@ -287,6 +308,8 @@ export function DashboardLayout({ children, sidebarItems, title }: DashboardLayo
           </div>
         </main>
       </div>
+
+      <MessagingPanel />
     </div>
   );
 }
