@@ -10,7 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useAuthStore } from '@/store/authStore';
 
 interface ProfileViewProps {
   role: 'admin' | 'super-admin';
@@ -19,9 +20,16 @@ interface ProfileViewProps {
 export function ProfileView({ role }: ProfileViewProps) {
   const isSuperAdmin = role === 'super-admin';
   const roleTitle = isSuperAdmin ? 'Super Administrator' : 'Administrator';
+  const { user } = useAuthStore();
   const [isEditing, setIsEditing] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (user?.avatar) {
+      setAvatarPreview(user.avatar);
+    }
+  }, [user]);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -95,10 +103,12 @@ export function ProfileView({ role }: ProfileViewProps) {
               </div>
               
               <div className="pt-14 pb-4 border-b border-slate-100 dark:border-slate-800">
-                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Alexander Wright</h2>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">{user?.name || 'User Profile'}</h2>
                 <p className="text-sm text-slate-500 mt-1">{roleTitle}</p>
                 <div className="mt-4 flex gap-2">
-                  <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none dark:bg-blue-900/30 dark:text-blue-400">EMP-2041</Badge>
+                  <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none dark:bg-blue-900/30 dark:text-blue-400">
+                    ID: {user?.id?.slice(0, 8).toUpperCase() || 'N/A'}
+                  </Badge>
                   <Badge variant="outline" className="border-emerald-200 text-emerald-700 bg-emerald-50 dark:border-emerald-900/50 dark:text-emerald-400 dark:bg-emerald-900/10">Active Status</Badge>
                 </div>
               </div>
@@ -106,15 +116,15 @@ export function ProfileView({ role }: ProfileViewProps) {
               <div className="pt-4 space-y-4">
                 <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
                   <Mail className="h-4 w-4 shrink-0" />
-                  <span className="truncate">alexander.wright@enterprise.edu</span>
+                  <span className="truncate">{user?.email || 'N/A'}</span>
                 </div>
                 <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
                   <Phone className="h-4 w-4 shrink-0" />
-                  <span>+1 (555) 123-4567</span>
+                  <span>Not Provided</span>
                 </div>
                 <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
                   <Clock className="h-4 w-4 shrink-0" />
-                  <span>Joined Oct 2024</span>
+                  <span>Role: {user?.role || roleTitle}</span>
                 </div>
               </div>
             </CardContent>
@@ -145,21 +155,13 @@ export function ProfileView({ role }: ProfileViewProps) {
                   </CardHeader>
                   <CardContent className="p-6 space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="first-name">First Name</Label>
-                        <Input id="first-name" defaultValue="Alexander" className="bg-slate-50 dark:bg-slate-900/50" />
+                      <div className="space-y-2 col-span-2">
+                        <Label htmlFor="full-name">Full Name</Label>
+                        <Input id="full-name" defaultValue={user?.name || ''} className="bg-slate-50 dark:bg-slate-900/50" />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="last-name">Last Name</Label>
-                        <Input id="last-name" defaultValue="Wright" className="bg-slate-50 dark:bg-slate-900/50" />
-                      </div>
-                      <div className="space-y-2">
+                      <div className="space-y-2 col-span-2">
                         <Label htmlFor="email">Email Address</Label>
-                        <Input id="email" type="email" defaultValue="alexander.wright@enterprise.edu" className="bg-slate-50 dark:bg-slate-900/50" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="phone">Phone Number</Label>
-                        <Input id="phone" type="tel" defaultValue="+1 (555) 123-4567" className="bg-slate-50 dark:bg-slate-900/50" />
+                        <Input id="email" type="email" defaultValue={user?.email || ''} readOnly className="bg-slate-100 dark:bg-slate-900 cursor-not-allowed" />
                       </div>
                     </div>
                     <Button className="bg-blue-600 hover:bg-blue-700 text-white mt-4" onClick={() => toast.success('Profile updated successfully')}><Save className="mr-2 h-4 w-4" /> Save Changes</Button>
