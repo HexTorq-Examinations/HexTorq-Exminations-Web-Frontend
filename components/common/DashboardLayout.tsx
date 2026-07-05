@@ -90,6 +90,8 @@ export function DashboardLayout({ children, sidebarItems, title }: DashboardLayo
     }
   }, [user, router, isMounted]);
 
+  const serverNow = useServerClock();
+
   if (!isMounted || !user) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
@@ -102,7 +104,6 @@ export function DashboardLayout({ children, sidebarItems, title }: DashboardLayo
     setTheme(theme === 'dark' ? 'light' : 'dark');
   };
 
-  const serverNow = useServerClock();
   const currentDate = serverNow ? format(serverNow, 'EEEE, MMM d, yyyy') : '';
   const currentTime = serverNow ? format(serverNow, 'h:mm:ss a') : '';
 
