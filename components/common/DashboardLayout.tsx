@@ -342,17 +342,25 @@ export function DashboardLayout({ children, sidebarItems, title }: DashboardLayo
               {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger className="flex items-center gap-2 ml-2 outline-none rounded-full focus-visible:ring-2 focus-visible:ring-blue-500 pl-1 pr-3 py-1 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+            <div className="flex items-center ml-2 border border-slate-200 dark:border-slate-800 rounded-full pl-1 pr-1 py-1 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+              <div 
+                onClick={() => router.push(profileHref)}
+                className="flex items-center gap-2 cursor-pointer pr-2"
+              >
                 <Avatar className="h-8 w-8 shadow-sm">
                   <AvatarImage src={user.avatar} alt={user.name} />
                   <AvatarFallback className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 font-semibold">{user.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div className="hidden sm:flex flex-col items-start text-left">
-                  <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 leading-none">{user.name}</span>
+                  <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 leading-none hover:text-blue-600 transition-colors">{user.name}</span>
                   <span className="text-[10px] font-medium text-slate-500 uppercase mt-0.5 tracking-wider">{user.role.replace('_', ' ')}</span>
                 </div>
-              </DropdownMenuTrigger>
+              </div>
+              <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1 hidden sm:block"></div>
+              <DropdownMenu>
+                <DropdownMenuTrigger className="p-1 outline-none rounded-full focus-visible:ring-2 focus-visible:ring-blue-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500"><path d="m6 9 6 6 6-6"/></svg>
+                </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end">
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
@@ -380,6 +388,7 @@ export function DashboardLayout({ children, sidebarItems, title }: DashboardLayo
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          </div>
           </div>
         </header>
 

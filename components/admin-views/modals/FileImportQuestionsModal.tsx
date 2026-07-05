@@ -102,7 +102,7 @@ export function FileImportQuestionsModal({ open, onOpenChange, examId, defaultSu
         <DialogHeader>
           <DialogTitle>Import Questions from File</DialogTitle>
           <DialogDescription>
-            Upload a .xlsx, .xls, or .csv file with columns: Question, Option1, Option2, Option3, Option4, Answer.
+            Upload a .xlsx, .xls, or .csv file. Required columns vary by question type (Multiple Choice, True/False, Descriptive).
           </DialogDescription>
         </DialogHeader>
 
@@ -134,6 +134,7 @@ export function FileImportQuestionsModal({ open, onOpenChange, examId, defaultSu
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 placeholder="e.g., Computer Science"
+                disabled
               />
             </div>
             <div className="space-y-2">
