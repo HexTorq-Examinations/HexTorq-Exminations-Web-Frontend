@@ -19,7 +19,7 @@ import { useAcademicStore } from '@/store/academicStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Layers, PlusCircle } from 'lucide-react';
 import { NameFormDialog } from '@/components/admin-views/modals/NameFormDialog';
-
+import { NetworkPing } from '@/components/common/NetworkPing';
 
 interface SidebarItem {
   name: string;
@@ -310,6 +310,8 @@ export function DashboardLayout({ children, sidebarItems, title }: DashboardLayo
           </div>
           
           <div className="flex items-center gap-3">
+            <NetworkPing />
+            
             <div className="hidden lg:flex items-center gap-2 text-sm font-medium text-slate-500 bg-slate-50 dark:bg-slate-900 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800">
               <span>{currentDate}</span>
               <span className="h-3 w-px bg-slate-300 dark:bg-slate-700" />
