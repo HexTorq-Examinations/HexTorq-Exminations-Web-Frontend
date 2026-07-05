@@ -115,7 +115,7 @@ export function QuestionFormModal({ open, onOpenChange, questionToEdit, examId }
               <Label htmlFor="subject">Subject *</Label>
               <Select 
                 defaultValue={questionToEdit?.subject || currentExam?.subject || ''} 
-                onValueChange={(val) => setValue('subject', val)}
+                onValueChange={(val) => setValue('subject', val as string)}
               >
                 <SelectTrigger id="subject">
                   <SelectValue placeholder="Select subject" />
