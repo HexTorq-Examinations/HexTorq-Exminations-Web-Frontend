@@ -357,38 +357,16 @@ export function DashboardLayout({ children, sidebarItems, title }: DashboardLayo
                 </div>
               </div>
               <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1 hidden sm:block"></div>
-              <DropdownMenu>
-                <DropdownMenuTrigger className="p-1 outline-none rounded-full focus-visible:ring-2 focus-visible:ring-blue-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500"><path d="m6 9 6 6 6-6"/></svg>
-                </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end">
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user.name}</p>
-                    <p className="text-xs leading-none text-slate-500 dark:text-slate-400">
-                      {user.email}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => router.push(profileHref)} className="cursor-pointer">
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
-                </DropdownMenuItem>
-                {user?.role !== 'STUDENT' && (
-                  <DropdownMenuItem onClick={() => router.push(settingsHref)} className="cursor-pointer">
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Settings</span>
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:bg-red-50 focus:text-red-700 dark:focus:bg-red-950/30">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleLogout} 
+                className="h-9 w-9 text-slate-500 rounded-full hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 transition-colors"
+                title="Log Out"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </header>
 

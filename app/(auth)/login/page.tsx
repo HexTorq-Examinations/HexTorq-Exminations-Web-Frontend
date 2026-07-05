@@ -9,9 +9,9 @@ import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Shield, User, GraduationCap, ChevronRight, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Hexagon, ArrowRight, Sparkles } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const loginSchema = z.object({
   email: z.string().min(1, 'Please enter your email or Student ID'),
@@ -20,19 +20,13 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-const demoAccounts = [
-  { role: 'Super Admin', email: 'superadmin@example.com', icon: Shield, color: 'text-purple-600', bg: 'bg-purple-50 hover:bg-purple-100 border-purple-200', badge: 'bg-purple-100 text-purple-700' },
-  { role: 'Admin', email: 'admin@example.com', icon: User, color: 'text-blue-600', bg: 'bg-blue-50 hover:bg-blue-100 border-blue-200', badge: 'bg-blue-100 text-blue-700' },
-  { role: 'Student', email: 'student@example.com', icon: GraduationCap, color: 'text-emerald-600', bg: 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200', badge: 'bg-emerald-100 text-emerald-700' },
-];
-
 export default function LoginPage() {
   const router = useRouter();
   const { login, isLoading } = useAuthStore();
   const [errorMsg, setErrorMsg] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm<LoginFormValues>({
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: '', password: '' },
   });
@@ -51,113 +45,116 @@ export default function LoginPage() {
     }
   };
 
-  const fillCredentials = (email: string) => {
-    setValue('email', email);
-    setValue('password', 'password123');
-  };
-
   return (
-    <div className="w-full space-y-4">
-      {/* Main Login Card */}
-      <Card className="w-full shadow-xl border-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md">
-        <CardHeader className="space-y-2 text-center pb-4">
-          <div className="mx-auto w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/25 mb-2">
-            <span className="text-white font-bold text-xl">EA</span>
+    <div className="w-full relative">
+      {/* Decorative background elements behind the card */}
+      <div className="absolute -top-20 -left-20 w-64 h-64 bg-blue-500/30 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-purple-500/30 rounded-full blur-[100px] pointer-events-none" />
+
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+        className="relative z-10 w-full overflow-hidden rounded-[2rem] border border-white/20 dark:border-white/10 bg-white/60 dark:bg-slate-950/60 backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.4)]"
+      >
+        <div className="p-8 md:p-10 space-y-8">
+          <div className="text-center space-y-3">
+            <motion.div 
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 15 }}
+              className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/30 mb-6 relative group"
+            >
+              <div className="absolute inset-0 bg-white/20 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+              <Hexagon className="text-white w-8 h-8 fill-white/10" strokeWidth={1.5} />
+            </motion.div>
+            <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-br from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 bg-clip-text text-transparent">
+              HexTorq OS
+            </h1>
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center justify-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              Enterprise Assessment Platform
+            </p>
           </div>
-          <CardTitle className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-            Enterprise Assessment
-          </CardTitle>
-          <CardDescription className="text-slate-500">
-            Sign in to access your portal
-          </CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <CardContent className="space-y-4">
-            {errorMsg && (
-              <div className="p-3 text-sm font-medium text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 rounded-lg border border-red-200 dark:border-red-900/50">
-                {errorMsg}
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="email">Email address / Student ID</Label>
-              <Input
-                id="email"
-                type="text"
-                placeholder="name@example.com or ENR-001"
-                {...register('email')}
-                className={`h-11 ${errors.email ? 'border-red-500' : ''}`}
-              />
-              {errors.email && <p className="text-sm text-red-500">{errors.email.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-                <button type="button" className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400">
-                  Forgot password?
-                </button>
-              </div>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter your password"
-                  {...register('password')}
-                  className={`h-11 pr-10 ${errors.password ? 'border-red-500' : ''}`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <AnimatePresence>
+              {errorMsg && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                  animate={{ opacity: 1, height: 'auto', marginTop: 16 }}
+                  exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                  className="overflow-hidden"
                 >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
+                  <div className="p-3 text-sm font-medium text-red-600 bg-red-500/10 rounded-xl border border-red-500/20 text-center">
+                    {errorMsg}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider text-slate-500 ml-1">Identity</Label>
+                <div className="relative group">
+                  <Input
+                    id="email"
+                    type="text"
+                    placeholder="Email or Student ID"
+                    {...register('email')}
+                    className={`h-12 bg-white/50 dark:bg-slate-900/50 border-slate-200/60 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all rounded-xl shadow-sm ${errors.email ? 'border-red-500 focus-visible:ring-red-500' : 'focus-visible:ring-blue-500'}`}
+                  />
+                  <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 opacity-0 group-focus-within:opacity-10 -z-10 blur transition-opacity" />
+                </div>
+                {errors.email && <p className="text-xs text-red-500 ml-1 mt-1">{errors.email.message}</p>}
               </div>
-              {errors.password && <p className="text-sm text-red-500">{errors.password.message}</p>}
+
+              <div className="space-y-1.5">
+                <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider text-slate-500 ml-1">Security Key</Label>
+                <div className="relative group">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    {...register('password')}
+                    className={`h-12 pr-12 bg-white/50 dark:bg-slate-900/50 border-slate-200/60 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all rounded-xl shadow-sm tracking-widest placeholder:tracking-normal ${errors.password ? 'border-red-500 focus-visible:ring-red-500' : 'focus-visible:ring-blue-500'}`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-0 bottom-0 m-auto h-6 w-6 flex items-center justify-center text-slate-400 hover:text-blue-500 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                  <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 opacity-0 group-focus-within:opacity-10 -z-10 blur transition-opacity" />
+                </div>
+                {errors.password && <p className="text-xs text-red-500 ml-1 mt-1">{errors.password.message}</p>}
+              </div>
             </div>
-          </CardContent>
-          <CardFooter className="pt-0">
-            <Button type="submit" className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-semibold" disabled={isLoading}>
+
+            <Button 
+              type="submit" 
+              className="w-full h-12 bg-slate-900 hover:bg-blue-600 dark:bg-white dark:text-slate-900 dark:hover:bg-blue-500 dark:hover:text-white transition-all duration-300 rounded-xl font-bold shadow-lg shadow-slate-900/20 dark:shadow-white/10 group overflow-hidden relative" 
+              disabled={isLoading}
+            >
+              <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
               {isLoading ? (
-                <span className="flex items-center gap-2">
-                  <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Signing in...
+                <span className="flex items-center justify-center gap-2">
+                  <span className="h-5 w-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  Authenticating...
                 </span>
               ) : (
-                <span className="flex items-center gap-2">Sign In <ChevronRight className="h-4 w-4" /></span>
+                <span className="flex items-center justify-center gap-2">
+                  Access Portal <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                </span>
               )}
             </Button>
-          </CardFooter>
-        </form>
-      </Card>
-
-      {/* Demo Accounts Panel */}
-      <Card className="w-full shadow-sm border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 backdrop-blur-md">
-        <CardContent className="pt-4 pb-4 space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 text-center mb-3">
-            Demo Accounts — click to auto-fill
-          </p>
-          {demoAccounts.map((account) => (
-            <button
-              key={account.role}
-              type="button"
-              onClick={() => fillCredentials(account.email)}
-              className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${account.bg} dark:bg-slate-800/50 dark:border-slate-700 dark:hover:bg-slate-800`}
-            >
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${account.badge}`}>
-                <account.icon className="h-4 w-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className={`text-sm font-semibold ${account.color}`}>{account.role}</p>
-                <p className="text-xs text-slate-500 truncate">{account.email}</p>
-              </div>
-              <ChevronRight className="h-4 w-4 text-slate-400 flex-shrink-0" />
-            </button>
-          ))}
-          <p className="text-xs text-center text-slate-400 pt-1">
-            Password: <span className="font-mono font-semibold text-slate-600 dark:text-slate-400">password123</span>
-          </p>
-        </CardContent>
-      </Card>
+          </form>
+        </div>
+        
+        {/* Sleek bottom border accent */}
+        <div className="h-1.5 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
+      </motion.div>
     </div>
   );
 }
