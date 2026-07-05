@@ -192,29 +192,20 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
   },
   addExamMapping: async (mappingData) => {
     set({ isLoading: true });
-    const { data } = await api.post('/exam-mappings', mappingData);
-    set((state) => ({
-      examMappings: [data, ...state.examMappings.filter((m) => m.id !== data.id)],
-      isLoading: false,
-    }));
+    await api.post('/exam-mappings', mappingData);
+    await Promise.all([get().fetchExams(), get().fetchExamMappings()]);
     toast.success('Exam Mapped Successfully');
   },
   updateExamMapping: async (id, data) => {
     set({ isLoading: true });
-    const { data: updated } = await api.patch(`/exam-mappings/${id}`, data);
-    set((state) => ({
-      examMappings: state.examMappings.map((m) => (m.id === id ? updated : m)),
-      isLoading: false,
-    }));
+    await api.patch(`/exam-mappings/${id}`, data);
+    await Promise.all([get().fetchExams(), get().fetchExamMappings()]);
     toast.success('Exam Mapping Updated Successfully');
   },
   deleteExamMapping: async (id) => {
     set({ isLoading: true });
     await api.delete(`/exam-mappings/${id}`);
-    set((state) => ({
-      examMappings: state.examMappings.filter((m) => m.id !== id),
-      isLoading: false,
-    }));
+    await Promise.all([get().fetchExams(), get().fetchExamMappings()]);
     toast.success('Exam Mapping Removed Successfully');
   },
 
