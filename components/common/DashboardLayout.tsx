@@ -15,6 +15,7 @@ import { useTheme } from 'next-themes';
 import { format } from 'date-fns';
 import { MessagingPanel } from '@/components/common/MessagingPanel';
 import { useMessagingStore } from '@/store/messagingStore';
+import { useServerClock } from '@/hooks/useServerClock';
 
 
 interface SidebarItem {
@@ -83,16 +84,26 @@ export function DashboardLayout({ children, sidebarItems, title }: DashboardLayo
     setTheme(theme === 'dark' ? 'light' : 'dark');
   };
 
-  const currentDate = format(new Date(), 'EEEE, MMM d, yyyy');
+  const serverNow = useServerClock();
+  const currentDate = serverNow ? format(serverNow, 'EEEE, MMM d, yyyy') : '';
+  const currentTime = serverNow ? format(serverNow, 'h:mm:ss a') : '';
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] dark:bg-[#020617] overflow-hidden font-sans">
       {/* Sidebar */}
-      <motion.aside 
+      <motion.aside
         initial={false}
         animate={{ width: isCollapsed ? 80 : 280 }}
-        className="hidden md:flex flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0F172A] z-20 shadow-sm"
+        className="hidden md:flex flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0F172A] z-20 shadow-sm relative"
       >
+        {/* Collapse/expand toggle — floats at the vertical center of the sidebar's edge */}
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          className="hidden md:flex absolute top-1/2 -right-3.5 -translate-y-1/2 z-30 h-7 w-7 items-center justify-center rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 shadow-md hover:shadow-lg transition-all"
+        >
+          {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+        </button>
         {/* Sidebar Header (Logo & Workspace) */}
         <div className="h-[72px] flex items-center px-4 border-b border-slate-200 dark:border-slate-800 justify-between">
           <div className="flex items-center gap-3 overflow-hidden">
@@ -116,8 +127,8 @@ export function DashboardLayout({ children, sidebarItems, title }: DashboardLayo
         </div>
 
         {/* Sidebar Content */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-6">
-          
+        <div className={`flex-1 overflow-y-auto p-4 space-y-6 ${isCollapsed ? 'overflow-x-visible' : 'overflow-x-hidden'}`}>
+
           {/* Navigation */}
           <nav className="space-y-1">
             {sidebarItems.map((item) => {
@@ -126,16 +137,22 @@ export function DashboardLayout({ children, sidebarItems, title }: DashboardLayo
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group overflow-hidden ${
-                    isActive 
-                      ? 'text-blue-700 dark:text-blue-400 bg-blue-50/80 dark:bg-blue-900/20 font-semibold shadow-[inset_4px_0_0_0_#2563EB]' 
+                  title={isCollapsed ? item.name : undefined}
+                  className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${
+                    isActive
+                      ? 'text-blue-700 dark:text-blue-400 bg-blue-50/80 dark:bg-blue-900/20 font-semibold shadow-[inset_4px_0_0_0_#2563EB]'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-200 font-medium'
                   }`}
                 >
                   <item.icon className={`flex-shrink-0 h-[18px] w-[18px] ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'} transition-colors`} />
+                  {isCollapsed && (
+                    <span className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 z-40 whitespace-nowrap rounded-md bg-slate-900 dark:bg-slate-700 text-white text-xs font-medium px-2.5 py-1.5 shadow-lg opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 transition-all duration-150">
+                      {item.name}
+                    </span>
+                  )}
                   <AnimatePresence>
                     {!isCollapsed && (
-                      <motion.span 
+                      <motion.span
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -10 }}
@@ -220,10 +237,6 @@ export function DashboardLayout({ children, sidebarItems, title }: DashboardLayo
               </Sheet>
             </div>
             
-            <Button variant="ghost" size="icon" onClick={() => setIsCollapsed(!isCollapsed)} className="hidden md:flex h-9 w-9 text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800">
-              {isCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
-            </Button>
-            
             {/* Welcome Message */}
             <div className="hidden md:flex items-center text-sm font-bold text-slate-900 dark:text-slate-100 bg-blue-50 dark:bg-blue-900/20 px-4 py-1.5 rounded-full border border-blue-100 dark:border-blue-800/50">
               Welcome back, {user?.name.split(' ')[0]} 
@@ -231,8 +244,10 @@ export function DashboardLayout({ children, sidebarItems, title }: DashboardLayo
           </div>
           
           <div className="flex items-center gap-3">
-            <div className="hidden lg:flex items-center text-sm font-medium text-slate-500 bg-slate-50 dark:bg-slate-900 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800">
-              {currentDate}
+            <div className="hidden lg:flex items-center gap-2 text-sm font-medium text-slate-500 bg-slate-50 dark:bg-slate-900 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800">
+              <span>{currentDate}</span>
+              <span className="h-3 w-px bg-slate-300 dark:bg-slate-700" />
+              <span className="font-mono tabular-nums text-slate-700 dark:text-slate-300">{currentTime}</span>
             </div>
 
             <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block"></div>
