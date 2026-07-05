@@ -82,9 +82,16 @@ export function StudentFormModal({ open, onOpenChange, studentToEdit }: StudentF
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email Address *</Label>
+              <Label htmlFor="email">Email Address</Label>
               <Input id="email" type="email" {...register('email')} placeholder="student@example.com" />
               {errors.email && <p className="text-red-500 text-xs">{errors.email.message}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input id="password" type="password" {...register('password')} placeholder="e.g., secret123" />
+              {errors.password && <p className="text-red-500 text-xs">{errors.password.message}</p>}
+              <p className="text-xs text-slate-500">Leave blank to use default password.</p>
             </div>
 
             <div className="space-y-2">
