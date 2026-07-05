@@ -23,7 +23,7 @@ import { toast } from 'sonner';
 import { useSuperAdminStore, AdminUser } from '@/store/superAdminStore';
 
 export default function AdminsPage() {
-  const { admins, fetchAdmins, addAdmin, updateAdmin, deleteAdmin, organizations, fetchOrganizations } = useSuperAdminStore();
+  const { admins, fetchAdmins, addAdmin, updateAdmin, deleteAdmin, organizations, fetchOrganizations, addOrganization } = useSuperAdminStore();
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -34,6 +34,8 @@ export default function AdminsPage() {
   const [editAdmin, setEditAdmin] = useState<AdminUser | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', email: '', phone: '', employeeId: '', role: 'Admin' as 'Admin' | 'Super Admin', organizationId: '' });
+  const [addOrgOpen, setAddOrgOpen] = useState(false);
+  const [orgForm, setOrgForm] = useState({ name: '', code: '', adminEmail: '', domain: '' });
 
   const filtered = admins.filter(a =>
     a.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -87,6 +89,16 @@ export default function AdminsPage() {
     if (deleteId === null) return;
     await deleteAdmin(deleteId);
     setDeleteId(null);
+  };
+
+  const handleAddOrg = async () => {
+    if (!orgForm.name || !orgForm.code || !orgForm.adminEmail) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    await addOrganization({ ...orgForm, plan: 'Basic', status: 'Active' });
+    setOrgForm({ name: '', code: '', adminEmail: '', domain: '' });
+    setAddOrgOpen(false);
   };
 
   const handleToggleStatus = async (admin: AdminUser) => {
@@ -266,7 +278,10 @@ export default function AdminsPage() {
             </div>
             {form.role === 'Admin' && (
               <div className="space-y-2">
-                <Label>Organization *</Label>
+                <div className="flex justify-between items-center">
+                  <Label>Organization *</Label>
+                  <Button variant="link" className="h-auto p-0 text-xs text-purple-600" onClick={() => setAddOrgOpen(true)}>+ Create New</Button>
+                </div>
                 <Select value={form.organizationId} onValueChange={(val) => setForm(f => ({ ...f, organizationId: val || '' }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select an organization" />
@@ -278,7 +293,7 @@ export default function AdminsPage() {
                   </SelectContent>
                 </Select>
                 {organizations.length === 0 && (
-                  <p className="text-xs text-amber-600">No organizations yet — create one first under Organizations.</p>
+                  <p className="text-xs text-amber-600">No organizations yet — create one first.</p>
                 )}
               </div>
             )}
@@ -302,6 +317,33 @@ export default function AdminsPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
             <Button variant="destructive" onClick={handleDelete}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Organization Modal */}
+      <Dialog open={addOrgOpen} onOpenChange={setAddOrgOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Organization</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Organization Name *</Label>
+              <Input placeholder="e.g. NorthState University" value={orgForm.name} onChange={e => setOrgForm(f => ({ ...f, name: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Organization Code *</Label>
+              <Input placeholder="e.g. NSU-001" value={orgForm.code} onChange={e => setOrgForm(f => ({ ...f, code: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Admin Email *</Label>
+              <Input type="email" placeholder="admin@org.edu" value={orgForm.adminEmail} onChange={e => setOrgForm(f => ({ ...f, adminEmail: e.target.value }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddOrgOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddOrg} className="bg-purple-600 hover:bg-purple-700 text-white">Create</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
