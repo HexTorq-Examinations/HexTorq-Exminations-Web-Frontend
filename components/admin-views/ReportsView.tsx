@@ -17,31 +17,57 @@ interface ReportsViewProps {
   role: 'admin' | 'super-admin';
 }
 
+interface StatsData {
+  totalStudents: number;
+  totalExams: number;
+  publishedResults: number;
+  totalAttempts: number;
+}
+
 export function ReportsView({ role }: ReportsViewProps) {
   const isSuperAdmin = role === 'super-admin';
   const { selectedBatchId } = useAcademicStore();
   const [studentsByDepartment, setStudentsByDepartment] = useState<{ name: string; students: number }[]>([]);
+  const [weeklyActivity, setWeeklyActivity] = useState<{ name: string; attempts: number }[]>([]);
+  const [stats, setStats] = useState<StatsData | null>(null);
 
   useEffect(() => {
     const params = !isSuperAdmin && selectedBatchId ? { batchId: selectedBatchId } : {};
-    api.get('/dashboard/overview', { params }).then(({ data }) => setStudentsByDepartment(data.studentsByDepartment || []));
+    Promise.all([
+      api.get('/dashboard/overview', { params }),
+      api.get(isSuperAdmin ? '/dashboard/super-admin' : '/dashboard/admin', { params }),
+    ]).then(([overviewRes, statsRes]) => {
+      setStudentsByDepartment(overviewRes.data.studentsByDepartment || []);
+      setWeeklyActivity(overviewRes.data.weeklyActivity || []);
+      setStats(statsRes.data);
+    });
   }, [isSuperAdmin, selectedBatchId]);
 
   const handleExport = () => {
-    // Simulate CSV download
+    const rows = [
+      ['Metric', 'Value'],
+      ['Total Students', String(stats?.totalStudents ?? 0)],
+      ['Total Exams', String(stats?.totalExams ?? 0)],
+      ['Published Results', String(stats?.publishedResults ?? 0)],
+      ['Exam Attempts', String(stats?.totalAttempts ?? 0)],
+      [],
+      ['Department', 'Students'],
+      ...studentsByDepartment.map((d) => [d.name, String(d.students)]),
+    ];
+    const csv = rows.map((r) => r.join(',')).join('\n');
     const link = document.createElement('a');
-    link.href = 'data:text/csv;charset=utf-8,Report,Date,Status\nStudent Performance,2025-07-04,Generated\nExam Analysis,2025-07-04,Generated';
+    link.href = `data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`;
     link.setAttribute('download', `platform-report-${new Date().toISOString().slice(0,10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  const stats = [
-    { title: 'Student Reports', value: '142', icon: Users, color: 'text-blue-600', bg: 'bg-blue-100' },
-    { title: 'Exam Reports', value: '56', icon: ClipboardCheck, color: 'text-purple-600', bg: 'bg-purple-100' },
-    { title: 'Result Analytics', value: '89', icon: BarChart2, color: 'text-emerald-600', bg: 'bg-emerald-100' },
-    { title: 'System Logs', value: '12k', icon: FileText, color: 'text-amber-600', bg: 'bg-amber-100' },
+  const statTiles = [
+    { title: 'Total Students', value: (stats?.totalStudents ?? 0).toLocaleString(), icon: Users, color: 'text-blue-600', bg: 'bg-blue-100' },
+    { title: 'Total Exams', value: (stats?.totalExams ?? 0).toLocaleString(), icon: ClipboardCheck, color: 'text-purple-600', bg: 'bg-purple-100' },
+    { title: 'Published Results', value: (stats?.publishedResults ?? 0).toLocaleString(), icon: BarChart2, color: 'text-emerald-600', bg: 'bg-emerald-100' },
+    { title: 'Exam Attempts', value: (stats?.totalAttempts ?? 0).toLocaleString(), icon: FileText, color: 'text-amber-600', bg: 'bg-amber-100' },
   ];
 
   const reportCategories = [
@@ -71,16 +97,6 @@ export function ReportsView({ role }: ReportsViewProps) {
     },
   ];
 
-  const activeUsersData = [
-    { name: 'Mon', users: 4000 },
-    { name: 'Tue', users: 3000 },
-    { name: 'Wed', users: 5000 },
-    { name: 'Thu', users: 2780 },
-    { name: 'Fri', users: 1890 },
-    { name: 'Sat', users: 2390 },
-    { name: 'Sun', users: 3490 },
-  ];
-
   return (
     <div className="space-y-6 pb-10">
       <PageHeader 
@@ -100,7 +116,7 @@ export function ReportsView({ role }: ReportsViewProps) {
       
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-        {stats.map((stat, i) => (
+        {statTiles.map((stat, i) => (
           <Card key={i} className="hover:shadow-md transition-shadow border-slate-200 dark:border-slate-800">
             <CardContent className="p-6 flex items-center gap-4">
               <div className={`p-4 rounded-xl ${stat.bg} dark:bg-opacity-20`}>
@@ -117,30 +133,33 @@ export function ReportsView({ role }: ReportsViewProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* Active Users Chart (Analytics Overview) */}
+        {/* Exam Attempts Chart (real data, this week) */}
         <div className="lg:col-span-8">
           <Card className="border-slate-200 dark:border-slate-800 shadow-sm h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-lg font-bold">Platform Activity (This Week)</CardTitle>
-              <Button variant="outline" size="sm"><Download className="mr-2 h-4 w-4" /> Export CSV</Button>
+              <CardTitle className="text-lg font-bold">Exam Attempts (This Week)</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-[300px] w-full mt-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={activeUsersData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                    <Area type="monotone" dataKey="users" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorUsers)" name="Active Users" />
-                  </AreaChart>
-                </ResponsiveContainer>
+              <div className="h-70 w-full mt-4">
+                {weeklyActivity.every((d) => d.attempts === 0) ? (
+                  <div className="h-full w-full flex items-center justify-center text-slate-400 text-sm">No exam attempts this week</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={weeklyActivity} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorAttempts" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} allowDecimals={false} />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                      <Area type="monotone" dataKey="attempts" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorAttempts)" name="Exam Attempts" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </CardContent>
           </Card>
