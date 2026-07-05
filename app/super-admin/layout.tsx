@@ -1,7 +1,7 @@
 'use client';
 
 import { DashboardLayout } from '@/components/common/DashboardLayout';
-import { LayoutDashboard, Users, ClipboardCheck, BarChart3, FileText, Settings, User as UserIcon, Plus, BarChart2 } from 'lucide-react';
+import { LayoutDashboard, Users, ClipboardCheck, BarChart3, FileText, Settings, User as UserIcon, Plus, BarChart2, MessageSquare } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 
 const sidebarItems = [
@@ -10,6 +10,7 @@ const sidebarItems = [
   { name: 'Exam Management', href: '/super-admin/exams', icon: ClipboardCheck },
   { name: 'Results', href: '/super-admin/results', icon: BarChart3 },
   { name: 'Reports', href: '/super-admin/reports', icon: FileText },
+  { name: 'Messages', href: '/super-admin/messages', icon: MessageSquare },
   { name: 'System Settings', href: '/super-admin/settings', icon: Settings },
   { name: 'Profile', href: '/super-admin/profile', icon: UserIcon },
 ];

@@ -36,36 +36,48 @@ import { useAdminStore } from '@/store/adminStore';
 import { Pagination } from '@/components/common/Pagination';
 import { EmptyState } from '@/components/common/EmptyState';
 import { SkeletonTable } from '@/components/common/SkeletonTable';
+import { api } from '@/lib/api';
 
 interface ResultsViewProps {
   role: 'admin' | 'super-admin';
 }
 
-const barData = [
-  { subject: 'Computer Science', average: 78, highest: 95 },
-  { subject: 'Mathematics', average: 65, highest: 88 },
-  { subject: 'Physics', average: 72, highest: 92 },
-  { subject: 'Chemistry', average: 68, highest: 89 },
-];
-
-const pieData = [
-  { name: 'Distinction', value: 25, color: '#10b981' },
-  { name: 'First Class', value: 45, color: '#3b82f6' },
-  { name: 'Second Class', value: 20, color: '#f59e0b' },
-  { name: 'Failed', value: 10, color: '#ef4444' },
-];
+interface ResultsAnalytics {
+  totalStudents: number;
+  overallPassRate: number;
+  averageScorePercent: number;
+  needsAttention: number;
+  subjectPerformance: { subject: string; average: number; highest: number }[];
+  gradeDistribution: { name: string; value: number; color: string }[];
+}
 
 export function ResultsView({ role }: ResultsViewProps) {
   const isSuperAdmin = role === 'super-admin';
   const { results, isLoading, fetchResults, publishResult } = useAdminStore();
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 5;
 
+  const [analytics, setAnalytics] = useState<ResultsAnalytics | null>(null);
+  const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(true);
+
   useEffect(() => {
     fetchResults();
   }, [fetchResults]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoadingAnalytics(true);
+    api.get('/results/analytics')
+      .then(({ data }) => { if (!cancelled) setAnalytics(data); })
+      .finally(() => { if (!cancelled) setIsLoadingAnalytics(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const barData = analytics?.subjectPerformance || [];
+  const pieData = analytics?.gradeDistribution || [];
+  const hasGrades = pieData.some((d) => d.value > 0);
 
   const handlePublishAll = () => {
     results.filter(r => r.status !== 'Published').forEach(r => {
@@ -86,9 +98,9 @@ export function ResultsView({ role }: ResultsViewProps) {
 
   const stats = [
     { title: 'Total Results', value: results.length, icon: FileBarChart, color: 'text-blue-600', bg: 'bg-blue-100' },
-    { title: 'Overall Pass Rate', value: '88.5%', icon: Trophy, color: 'text-emerald-600', bg: 'bg-emerald-100' },
-    { title: 'Average Score', value: '72/100', icon: TrendingUp, color: 'text-purple-600', bg: 'bg-purple-100' },
-    { title: 'Needs Attention', value: '12', icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-100' },
+    { title: 'Overall Pass Rate', value: `${analytics?.overallPassRate ?? 0}%`, icon: Trophy, color: 'text-emerald-600', bg: 'bg-emerald-100' },
+    { title: 'Average Score', value: `${analytics?.averageScorePercent ?? 0}%`, icon: TrendingUp, color: 'text-purple-600', bg: 'bg-purple-100' },
+    { title: 'Needs Attention', value: analytics?.needsAttention ?? 0, icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-100' },
   ];
 
   return (
@@ -133,20 +145,26 @@ export function ResultsView({ role }: ResultsViewProps) {
             <CardTitle className="text-base font-semibold">Subject Performance Averages</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-[250px] w-full mt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={barData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="subject" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                  <Tooltip 
-                    cursor={{ fill: '#f1f5f9' }}
-                    contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  />
-                  <Bar dataKey="average" name="Average Score" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={32} />
-                  <Bar dataKey="highest" name="Highest Score" fill="#10b981" radius={[4, 4, 0, 0]} barSize={32} />
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="h-70 w-full mt-4">
+              {isLoadingAnalytics ? (
+                <div className="h-full w-full flex items-center justify-center text-slate-400 text-sm">Loading...</div>
+              ) : barData.length === 0 ? (
+                <div className="h-full w-full flex items-center justify-center text-slate-400 text-sm">No completed exams yet</div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={barData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="subject" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} domain={[0, 100]} />
+                    <Tooltip
+                      cursor={{ fill: '#f1f5f9' }}
+                      contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    />
+                    <Bar dataKey="average" name="Average Score %" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={32} />
+                    <Bar dataKey="highest" name="Highest Score %" fill="#10b981" radius={[4, 4, 0, 0]} barSize={32} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -155,35 +173,43 @@ export function ResultsView({ role }: ResultsViewProps) {
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-semibold">Grade Distribution</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center h-[280px]">
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+          <CardContent className="flex flex-col items-center justify-center h-70">
+            {isLoadingAnalytics ? (
+              <div className="h-full w-full flex items-center justify-center text-slate-400 text-sm">Loading...</div>
+            ) : !hasGrades ? (
+              <div className="h-full w-full flex items-center justify-center text-slate-400 text-sm">No completed exams yet</div>
+            ) : (
+              <>
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="flex flex-wrap justify-center gap-3 mt-4">
+                  {pieData.map((item, i) => (
+                    <div key={i} className="flex items-center text-xs text-slate-600">
+                      <span className="w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: item.color }} />
+                      {item.name} ({item.value})
+                    </div>
                   ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="flex flex-wrap justify-center gap-3 mt-4">
-              {pieData.map((item, i) => (
-                <div key={i} className="flex items-center text-xs text-slate-600">
-                  <span className="w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: item.color }} />
-                  {item.name}
                 </div>
-              ))}
-            </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { DashboardLayout } from '@/components/common/DashboardLayout';
-import { LayoutDashboard, Calendar, PlayCircle, CheckCircle2, BarChart3, Award, Bell, User as UserIcon, FileText, Monitor, BarChart2 } from 'lucide-react';
+import { LayoutDashboard, Calendar, PlayCircle, CheckCircle2, BarChart3, Award, Bell, User as UserIcon, FileText, Monitor, BarChart2, MessageSquare } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 
 const sidebarItems = [
@@ -10,6 +10,7 @@ const sidebarItems = [
   { name: 'Active Exams', href: '/student/active-exams', icon: PlayCircle },
   { name: 'Completed Exams', href: '/student/completed-exams', icon: CheckCircle2 },
   { name: 'My Results', href: '/student/results', icon: BarChart2 },
+  { name: 'Messages', href: '/student/messages', icon: MessageSquare },
   { name: 'Notifications', href: '/student/notifications', icon: Bell },
   { name: 'Profile', href: '/student/profile', icon: UserIcon },
 ];

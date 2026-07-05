@@ -41,6 +41,7 @@ export function DashboardLayout({ children, sidebarItems, title }: DashboardLayo
   const { setTheme, theme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [hoveredNavItem, setHoveredNavItem] = useState<{ name: string; top: number } | null>(null);
   const { unreadTotal, fetchUnreadTotal, openPanel } = useMessagingStore();
   const { batches, selectedBatchId, setSelectedBatchId, fetchBatches, addBatch, isLoading: isAcademicLoading } = useAcademicStore();
   const [batchDialogOpen, setBatchDialogOpen] = useState(false);
@@ -146,7 +147,7 @@ export function DashboardLayout({ children, sidebarItems, title }: DashboardLayo
         </div>
 
         {/* Sidebar Content */}
-        <div className={`flex-1 overflow-y-auto p-4 space-y-6 ${isCollapsed ? 'overflow-x-visible' : 'overflow-x-hidden'}`}>
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-6">
 
           {/* Navigation */}
           <nav className="space-y-1">
@@ -156,7 +157,12 @@ export function DashboardLayout({ children, sidebarItems, title }: DashboardLayo
                 <Link
                   key={item.name}
                   href={item.href}
-                  title={isCollapsed ? item.name : undefined}
+                  onMouseEnter={(e) => {
+                    if (!isCollapsed) return;
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setHoveredNavItem({ name: item.name, top: rect.top + rect.height / 2 });
+                  }}
+                  onMouseLeave={() => setHoveredNavItem(null)}
                   className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${
                     isActive
                       ? 'text-blue-700 dark:text-blue-400 bg-blue-50/80 dark:bg-blue-900/20 font-semibold shadow-[inset_4px_0_0_0_#2563EB]'
@@ -164,11 +170,6 @@ export function DashboardLayout({ children, sidebarItems, title }: DashboardLayo
                   }`}
                 >
                   <item.icon className={`flex-shrink-0 h-[18px] w-[18px] ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'} transition-colors`} />
-                  {isCollapsed && (
-                    <span className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 z-40 whitespace-nowrap rounded-md bg-slate-900 dark:bg-slate-700 text-white text-xs font-medium px-2.5 py-1.5 shadow-lg opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 transition-all duration-150">
-                      {item.name}
-                    </span>
-                  )}
                   <AnimatePresence>
                     {!isCollapsed && (
                       <motion.span
@@ -200,6 +201,23 @@ export function DashboardLayout({ children, sidebarItems, title }: DashboardLayo
           </Button>
         </div>
       </motion.aside>
+
+      {/* Collapsed-sidebar hover tooltip — rendered fixed to the viewport (not inside the
+          scrolling sidebar content) so it can never trigger a horizontal scrollbar there. */}
+      <AnimatePresence>
+        {isCollapsed && hoveredNavItem && (
+          <motion.span
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.1 }}
+            style={{ top: hoveredNavItem.top }}
+            className="hidden md:block pointer-events-none fixed left-23 -translate-y-1/2 z-50 whitespace-nowrap rounded-md bg-slate-900 dark:bg-slate-700 text-white text-xs font-medium px-2.5 py-1.5 shadow-lg"
+          >
+            {hoveredNavItem.name}
+          </motion.span>
+        )}
+      </AnimatePresence>
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -299,7 +317,7 @@ export function DashboardLayout({ children, sidebarItems, title }: DashboardLayo
 
             <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block"></div>
 
-            <Button variant="ghost" size="icon" onClick={openPanel} className="h-9 w-9 text-slate-500 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 relative">
+            <Button variant="ghost" size="icon" onClick={() => router.push(`${rolePrefix}/messages`)} className="h-9 w-9 text-slate-500 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 relative">
               <MessageSquare className="h-4 w-4" />
               {unreadTotal > 0 && (
                 <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-blue-500 rounded-full border-2 border-white dark:border-[#0F172A]"></span>
