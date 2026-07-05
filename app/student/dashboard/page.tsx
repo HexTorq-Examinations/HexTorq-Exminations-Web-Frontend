@@ -12,17 +12,23 @@ import { useExamStore } from '@/store/examStore';
 
 export default function StudentDashboard() {
   const { user } = useAuthStore();
-  const { exams, fetchExams } = useAdminStore();
-  const { examHistory, fetchExamHistory } = useExamStore();
+  const { examHistory, fetchExamHistory, myMappings, fetchMyMappings } = useExamStore();
 
   useEffect(() => {
-    fetchExams();
+    fetchMyMappings();
     fetchExamHistory();
-  }, [fetchExams, fetchExamHistory]);
+  }, [fetchMyMappings, fetchExamHistory]);
 
-  const upcomingCount = exams.filter(e => e.status !== 'Active' && !(examHistory || []).some(h => h.examId === e.id)).length;
-  const activeCount = exams.filter(e => e.status === 'Active' && !(examHistory || []).some(h => h.examId === e.id)).length;
+  const upcomingMappings = myMappings.filter(m => new Date(`${m.date}T${m.startTime}`) > new Date() && !(examHistory || []).some(h => h.examId === m.examId));
+  // Sort upcoming by nearest date first
+  upcomingMappings.sort((a, b) => new Date(`${a.date}T${a.startTime}`).getTime() - new Date(`${b.date}T${b.startTime}`).getTime());
+
+  const activeMappings = myMappings.filter(m => m.status === 'In Progress' && !(examHistory || []).some(h => h.examId === m.examId));
   const completedCount = (examHistory || []).length;
+  const upcomingCount = upcomingMappings.length;
+  const activeCount = activeMappings.length;
+
+  const nextExam = upcomingMappings[0];
   
   const stats = [
     { title: 'Upcoming Exams', value: upcomingCount.toString(), icon: Calendar, color: 'text-blue-600', bg: 'bg-blue-100' },
@@ -72,17 +78,23 @@ export default function StudentDashboard() {
                   <div className="flex items-center gap-2 mb-2">
                     <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-bold uppercase tracking-wider">Up Next</span>
                   </div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Data Structures & Algorithms</h3>
-                  <p className="text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2">
-                    <Clock className="w-4 h-4" /> 
-                    Starts in 2 Days, 4 Hours
-                  </p>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+                    {nextExam ? nextExam.examTitle : 'No upcoming exams'}
+                  </h3>
+                  {nextExam && (
+                    <p className="text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2">
+                      <Clock className="w-4 h-4" /> 
+                      Starts on {new Date(nextExam.date).toLocaleDateString()} at {nextExam.startTime}
+                    </p>
+                  )}
                 </div>
-                <Link href="/student/upcoming-exams">
-                  <Button className="w-full md:w-auto bg-blue-600 hover:bg-blue-700">
-                    View Details <ChevronRight className="ml-2 w-4 h-4" />
-                  </Button>
-                </Link>
+                {nextExam && (
+                  <Link href="/student/upcoming-exams">
+                    <Button className="w-full md:w-auto bg-blue-600 hover:bg-blue-700">
+                      View Details <ChevronRight className="ml-2 w-4 h-4" />
+                    </Button>
+                  </Link>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -97,25 +109,27 @@ export default function StudentDashboard() {
             </CardHeader>
             <CardContent className="p-0">
               <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                {[
-                  { title: 'Data Structures & Algorithms', code: 'CS301', date: 'Oct 25, 2026', time: '10:00 AM' },
-                  { title: 'Database Management Systems', code: 'CS302', date: 'Oct 28, 2026', time: '02:00 PM' },
-                ].map((exam, i) => (
-                  <div key={i} className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
+                {upcomingMappings.slice(0, 3).map((mapping) => (
+                  <div key={mapping.id} className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
                     <div className="flex items-start gap-3">
                       <div className="p-2 bg-blue-50 dark:bg-blue-950/30 rounded-lg text-blue-600">
                         <Calendar className="w-5 h-5" />
                       </div>
                       <div>
-                        <h4 className="font-semibold text-slate-900 dark:text-slate-100">{exam.title}</h4>
+                        <h4 className="font-semibold text-slate-900 dark:text-slate-100">{mapping.examTitle}</h4>
                         <div className="flex items-center gap-3 mt-1 text-sm text-slate-500">
-                          <span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">{exam.code}</span>
-                          <span>{exam.date} • {exam.time}</span>
+                          <span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">EXAM</span>
+                          <span>{new Date(mapping.date).toLocaleDateString()} • {mapping.startTime}</span>
                         </div>
                       </div>
                     </div>
                   </div>
                 ))}
+                {upcomingMappings.length === 0 && (
+                  <div className="p-4 text-sm text-slate-500">
+                    No upcoming exams found.
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

@@ -39,11 +39,24 @@ export default function StudentUpcomingExams() {
     status: m.status,
   }));
 
+  // Sort the upcoming exams by nearest date
+  const sortedExams = [...upcomingExams].sort((a, b) => new Date(`${a.date} ${a.time}`).getTime() - new Date(`${b.date} ${b.time}`).getTime());
+  const nextExam = sortedExams[0];
+  
+  let nextExamDate = 'N/A';
+  let daysRemaining = '0';
+  if (nextExam) {
+    const nextDate = new Date(`${nextExam.date} ${nextExam.time}`);
+    nextExamDate = nextDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const diffTime = Math.abs(nextDate.getTime() - new Date().getTime());
+    daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24)).toString();
+  }
+
   const metrics = [
     { title: 'Total Upcoming Exams', value: upcomingExams.length.toString(), icon: FileText, color: 'text-blue-600', bg: 'bg-blue-100' },
-    { title: 'Next Exam Date', value: 'Oct 25', icon: Calendar, color: 'text-emerald-600', bg: 'bg-emerald-100' },
-    { title: 'Days Remaining', value: '2', icon: Clock, color: 'text-purple-600', bg: 'bg-purple-100' },
-    { title: 'New Notifications', value: '1', icon: Bell, color: 'text-amber-600', bg: 'bg-amber-100' },
+    { title: 'Next Exam Date', value: nextExamDate, icon: Calendar, color: 'text-emerald-600', bg: 'bg-emerald-100' },
+    { title: 'Days Remaining', value: daysRemaining, icon: Clock, color: 'text-purple-600', bg: 'bg-purple-100' },
+    { title: 'New Notifications', value: '0', icon: Bell, color: 'text-amber-600', bg: 'bg-amber-100' },
   ];
 
   return (
