@@ -77,6 +77,10 @@ function SetPasswordForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 p-2">
+      <div className="mb-2 p-3 bg-slate-100 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Setting password for account:</p>
+        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 break-all">{email}</p>
+      </div>
       <div className="space-y-2">
         <Label htmlFor="password">New Password</Label>
         <Input
@@ -117,7 +121,7 @@ export default function SetPasswordPage() {
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/30 mb-4">
             <KeyRound className="w-6 h-6 text-purple-600 dark:text-purple-400" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Welcome to HexTorq</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Welcome to HexTorq Examinations</h1>
           <p className="text-slate-500 dark:text-slate-400">Activate your admin account by setting a secure password.</p>
         </div>
         
