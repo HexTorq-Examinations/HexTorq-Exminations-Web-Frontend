@@ -5,7 +5,7 @@ import { api } from '@/lib/api';
 import { Wifi } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export function NetworkPing({ variant = 'default' }: { variant?: 'default' | 'transparent' }) {
+export function NetworkPing() {
   const [ping, setPing] = useState<number | null>(null);
 
   useEffect(() => {
@@ -13,7 +13,7 @@ export function NetworkPing({ variant = 'default' }: { variant?: 'default' | 'tr
     const checkPing = async () => {
       const start = Date.now();
       try {
-        await api.get('/health', { timeout: 3000 });
+        await api.get('/time', { timeout: 3000 });
         if (mounted) {
           setPing(Date.now() - start);
         }
@@ -39,16 +39,11 @@ export function NetworkPing({ variant = 'default' }: { variant?: 'default' | 'tr
 
   return (
     <div 
-      className={cn(
-        "flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-sm",
-        variant === 'default' 
-          ? "border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900" 
-          : "border-transparent bg-white/10 text-white"
-      )}
+      className="fixed bottom-4 left-4 z-50 flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-lg border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-md"
       title={`Network Latency: ${ping}ms`}
     >
       <Wifi className={cn("w-3.5 h-3.5", getPingColor())} />
-      <span className={cn("text-xs font-mono font-medium", variant === 'default' ? "text-slate-600 dark:text-slate-400" : "text-slate-200")}>
+      <span className="text-xs font-mono font-medium text-slate-600 dark:text-slate-400">
         {ping}ms
       </span>
     </div>

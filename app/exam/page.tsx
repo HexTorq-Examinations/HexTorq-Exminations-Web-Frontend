@@ -9,7 +9,6 @@ import { Card } from '@/components/ui/card';
 import { Camera, Mic, Monitor, Wifi, Calculator, AlertTriangle, ChevronRight, ChevronLeft, Flag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '@/lib/api';
-import { NetworkPing } from '@/components/common/NetworkPing';
 
 interface ExamQuestion {
   id: string;
@@ -186,7 +185,10 @@ function SecureExamInterface() {
             <span className="flex items-center gap-1.5"><Camera className="w-4 h-4 text-green-400" /> Camera</span>
             <span className="flex items-center gap-1.5"><Mic className="w-4 h-4 text-green-400" /> Mic</span>
             <span className="flex items-center gap-1.5"><Monitor className="w-4 h-4 text-green-400" /> Fullscreen</span>
-            <NetworkPing variant="transparent" />
+            <span className={`flex items-center gap-1.5 ${isOnline ? 'text-green-400' : 'text-red-400'}`}>
+              <Wifi className="w-4 h-4" />
+              {!isOnline ? 'Offline' : pendingSyncCount > 0 ? 'Syncing...' : 'Stable'}
+            </span>
           </div>
         </div>
 
