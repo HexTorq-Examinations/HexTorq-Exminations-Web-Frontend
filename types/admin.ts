@@ -21,8 +21,8 @@ export const QuestionSchema = z.object({
   type: z.enum(['Multiple Choice', 'True/False', 'Descriptive']).default('Multiple Choice'),
   difficulty: z.enum(['Easy', 'Medium', 'Hard']).default('Medium'),
   marks: z.coerce.number().min(1, 'Marks must be at least 1'),
-  options: z.array(z.string()).min(2, 'At least 2 options required'),
-  correctAnswer: z.coerce.number().min(0, 'Correct answer index is required'),
+  options: z.array(z.string()).default([]),
+  correctAnswer: z.coerce.number().default(0),
   explanation: z.string().optional(),
 });
 export type Question = z.infer<typeof QuestionSchema>;
