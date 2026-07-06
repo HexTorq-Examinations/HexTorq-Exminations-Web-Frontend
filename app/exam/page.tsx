@@ -214,6 +214,12 @@ function SecureExamInterface() {
               ? 'Your exam was automatically submitted due to exceeding the maximum allowed security violations.'
               : 'Your exam has been successfully submitted.'}
           </p>
+          {status === 'TERMINATED' && violations.length > 0 && (
+            <div className="mb-6 max-h-48 overflow-y-auto rounded-lg border border-amber-200 bg-amber-50 p-3 text-left">
+              <p className="mb-2 font-semibold text-amber-900">Violations recorded: {violations.length}</p>
+              <ol className="space-y-2 text-sm text-amber-900">{violations.map((violation, index) => <li key={violation.clientViolationId || violation.id}><b>{index + 1}. {violation.type.replaceAll('_', ' ')}</b><span className="block text-amber-800">{violation.description}</span><span className="block text-xs text-amber-700">{new Date(violation.timestamp).toLocaleString()}</span></li>)}</ol>
+            </div>
+          )}
           {pendingSubmitStatus && (
             <div className="mb-6 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-sm flex items-center justify-center gap-2">
               <span className="h-3 w-3 border-2 border-amber-500 border-t-transparent rounded-full animate-spin shrink-0" />

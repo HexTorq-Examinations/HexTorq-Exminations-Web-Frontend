@@ -53,7 +53,7 @@ interface ResultsAnalytics {
 }
 
 interface AttemptSummary { id: string; studentName: string; registerNumber?: string; status: string; score: number; violationsCount: number; }
-interface AttemptDetail extends AttemptSummary { exam: { title: string; totalMarks: number }; student: { name: string; registerNumber?: string }; violations: { type: string; description: string }[]; questions: { id: string; text: string; options: string[]; correctAnswer: string; selectedAnswer?: string; marks: number }[]; }
+interface AttemptDetail extends AttemptSummary { exam: { title: string; totalMarks: number }; student: { name: string; registerNumber?: string }; violations: { type: string; description: string; timestamp?: number }[]; questions: { id: string; text: string; options: string[]; correctAnswer: string; selectedAnswer?: string; marks: number }[]; }
 
 export function ResultsView({ role }: ResultsViewProps) {
   const isSuperAdmin = role === 'super-admin';
@@ -368,7 +368,9 @@ export function ResultsView({ role }: ResultsViewProps) {
               <div className="mt-6 border-t pt-4"><p className="mb-2 font-semibold">Legend</p><p className="text-emerald-700">Green: correct selection</p><p className="text-red-700">Red: incorrect selection</p><p className="text-slate-500">Grey: unanswered</p></div>
             </aside>
             <main className="overflow-y-auto p-6">
-              <div className="mx-auto max-w-4xl space-y-4">{attemptDetail?.questions.map((question, index) => {
+              <div className="mx-auto max-w-4xl space-y-4">
+                {!!attemptDetail?.violations?.length && <section className="rounded-xl border border-amber-200 bg-amber-50 p-5"><h3 className="font-semibold text-amber-900">Violation history ({attemptDetail.violations.length})</h3><div className="mt-3 grid gap-2 sm:grid-cols-2">{attemptDetail.violations.map((violation, index) => <div key={`${violation.timestamp || index}-${index}`} className="rounded-lg border border-amber-200 bg-white p-3"><p className="font-semibold text-amber-800">Violation {index + 1}: {violation.type.replaceAll('_', ' ')}</p><p className="mt-1 text-slate-700">{violation.description}</p>{violation.timestamp && <p className="mt-1 text-xs text-slate-500">{new Date(violation.timestamp).toLocaleString()}</p>}</div>)}</div></section>}
+                {attemptDetail?.questions.map((question, index) => {
                 const answered = !!question.selectedAnswer; const correct = question.selectedAnswer === question.correctAnswer;
                 return <section key={question.id} className="rounded-xl border bg-white p-5 text-sm">
                   <div className="flex justify-between gap-4"><h3 className="text-base font-semibold">{index + 1}. {question.text}</h3><Badge variant="outline">{question.marks} marks</Badge></div>
