@@ -42,6 +42,8 @@ export interface ApiErrorWithRows extends Error {
   rowErrors?: { row: number; error: string }[];
   code?: string;
   details?: unknown;
+  httpStatus?: number;
+  isNetworkError?: boolean;
 }
 
 api.interceptors.response.use(
@@ -83,6 +85,8 @@ api.interceptors.response.use(
     }
     wrapped.code = error.response?.data?.code;
     wrapped.details = error.response?.data?.details;
+    wrapped.httpStatus = error.response?.status;
+    wrapped.isNetworkError = !error.response;
     return Promise.reject(wrapped);
   }
 );

@@ -27,7 +27,7 @@ function SecureExamInterface() {
   const {
     status, examId: storeExamId, startExam, refreshAttemptStatus, endExam, timeRemaining, tickTimer, answers, saveAnswer,
     violations, clearSession, isPaused, setIsPaused, isOnline, unsyncedQuestionIds,
-    unsyncedViolationIds, pendingSubmitStatus, submissionReceipt, calculatorEnabled,
+    unsyncedViolationIds, pendingSubmitStatus, submissionReceipt, calculatorEnabled, lastSyncError, flushPending,
   } = useExamStore();
   const { violationsCount, maxViolations, requestFullscreen, hasExceededViolations, isTerminated } = useProctoring();
   const pendingSyncCount = unsyncedQuestionIds.length + unsyncedViolationIds.length + (pendingSubmitStatus ? 1 : 0);
@@ -226,6 +226,12 @@ function SecureExamInterface() {
               Waiting for a connection to confirm your submission with the server. Your answers are saved on this device and will sync automatically — keep this tab open.
             </div>
           )}
+          {lastSyncError && (
+            <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+              <p className="font-semibold">Server synchronization needs attention</p><p className="mt-1">{lastSyncError}</p>
+              <Button size="sm" variant="outline" className="mt-3" onClick={() => flushPending()}>Retry synchronization</Button>
+            </div>
+          )}
           {submissionReceipt && !pendingSubmitStatus && (
             <dl className="mb-6 rounded-lg border bg-slate-50 p-4 text-left text-sm" aria-label="Server submission receipt">
               <div className="flex justify-between gap-4"><dt className="text-slate-500">Attempt ID</dt><dd className="font-mono break-all text-right">{submissionReceipt.attemptId}</dd></div>
@@ -311,6 +317,13 @@ function SecureExamInterface() {
           </Button>
         </div>
       </header>
+
+      {lastSyncError && (
+        <div className="z-10 flex shrink-0 items-center justify-between gap-4 border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800" role="alert">
+          <span><b>Synchronization error:</b> {lastSyncError}</span>
+          <Button size="sm" variant="outline" onClick={() => flushPending()}>Retry</Button>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">

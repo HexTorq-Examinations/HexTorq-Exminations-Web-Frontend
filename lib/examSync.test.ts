@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { acknowledge, enqueueUnique, serverRemainingSeconds } from './examSync';
+import { acknowledge, classifySyncFailure, enqueueUnique, serverRemainingSeconds } from './examSync';
 
 describe('offline answer synchronization', () => {
   it('queues a question only once across repeated offline edits', () => {
@@ -8,6 +8,17 @@ describe('offline answer synchronization', () => {
 
   it('removes only the answer acknowledged by the server', () => {
     expect(acknowledge(['q1', 'q2'], 'q1')).toEqual(['q2']);
+  });
+});
+
+describe('sync failure classification', () => {
+  it('distinguishes connectivity, retryable, reconciliation and permanent failures', () => {
+    expect(classifySyncFailure({ isNetworkError: true })).toBe('network');
+    expect(classifySyncFailure({ httpStatus: 503 })).toBe('retryable');
+    expect(classifySyncFailure({ httpStatus: 429 })).toBe('retryable');
+    expect(classifySyncFailure({ httpStatus: 409 })).toBe('reconcile');
+    expect(classifySyncFailure({ httpStatus: 400 })).toBe('permanent');
+    expect(classifySyncFailure({ httpStatus: 401 })).toBe('permanent');
   });
 });
 

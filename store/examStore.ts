@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { api } from '@/lib/api';
 import { ExamMapping } from '@/types/admin';
-import { acknowledge, enqueueUnique, serverRemainingSeconds } from '@/lib/examSync';
+import { acknowledge, classifySyncFailure, enqueueUnique, serverRemainingSeconds } from '@/lib/examSync';
 
 export type ExamStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'TERMINATED';
 
@@ -41,6 +41,16 @@ export interface SubmissionReceipt {
 }
 
 const genId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+let retryAttempt = 0;
+const resetRetry = () => { if (retryTimer) clearTimeout(retryTimer); retryTimer = null; retryAttempt = 0; };
+const scheduleRetry = () => {
+  if (retryTimer) return;
+  const delay = Math.min(30_000, 1000 * (2 ** retryAttempt));
+  retryAttempt += 1;
+  retryTimer = setTimeout(() => { retryTimer = null; useExamStore.getState().flushPending(); }, delay);
+};
+const errorMessage = (error: unknown) => error instanceof Error ? error.message : 'Synchronization failed';
 
 interface ExamState {
   examId: string | null;
@@ -67,6 +77,7 @@ interface ExamState {
   submissionReceipt: SubmissionReceipt | null;
   isOnline: boolean;
   isSyncing: boolean;
+  lastSyncError: string | null;
 
   // Actions
   startExam: (examId: string) => Promise<{ durationSeconds: number; questions: AttemptQuestion[] }>;
@@ -107,6 +118,7 @@ export const useExamStore = create<ExamState>()(
       submissionReceipt: null,
       isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
       isSyncing: false,
+      lastSyncError: null,
 
       startExam: async (examId: string) => {
         const { data } = await api.post(`/exams/${examId}/start`);
@@ -128,6 +140,7 @@ export const useExamStore = create<ExamState>()(
           unsyncedViolationIds: [],
           pendingSubmitStatus: null,
           submissionReceipt: null,
+          lastSyncError: null,
         });
         return {
           durationSeconds: data.durationSeconds,
@@ -136,19 +149,22 @@ export const useExamStore = create<ExamState>()(
       },
 
       refreshAttemptStatus: async () => {
-        const { examId, status } = get();
-        if (!examId || status !== 'IN_PROGRESS') return;
+        const { examId } = get();
+        if (!examId) return;
         const { data } = await api.get(`/exams/${examId}/my-attempt`);
         const serverTimeOffsetMs = new Date(data.serverNow).getTime() - Date.now();
 
         if (!data.hasActiveAttempt && (data.status === 'COMPLETED' || data.status === 'TERMINATED')) {
           set({
-            status: 'COMPLETED',
+            status: data.status,
             timeRemaining: 0,
             endTime: Date.now() + serverTimeOffsetMs,
             pendingSubmitStatus: null,
+            unsyncedQuestionIds: [],
+            unsyncedViolationIds: [],
             serverTimeOffsetMs,
             submissionReceipt: data.attemptId ? { attemptId: data.attemptId, status: data.status, submittedAt: data.submittedAt, serverConfirmedAt: data.serverConfirmedAt } : null,
+            lastSyncError: null,
           });
           return;
         }
@@ -244,6 +260,7 @@ export const useExamStore = create<ExamState>()(
         }
 
         set({ isSyncing: true });
+        let encounteredPermanentFailure = false;
         try {
           // 1) Answers
           for (const questionId of [...get().unsyncedQuestionIds]) {
@@ -254,9 +271,16 @@ export const useExamStore = create<ExamState>()(
                 unsyncedQuestionIds: acknowledge(state.unsyncedQuestionIds, questionId),
               }));
               set({ isOnline: true });
-            } catch {
-              set({ isOnline: false });
-              return; // likely offline — stop and let the next trigger retry from here
+            } catch (error) {
+              const kind = classifySyncFailure(error);
+              if (kind === 'network' || kind === 'retryable') {
+                set({ isOnline: kind !== 'network', lastSyncError: kind === 'retryable' ? `Server temporarily unavailable: ${errorMessage(error)}` : null });
+                scheduleRetry();
+                return;
+              }
+              set((state) => ({ unsyncedQuestionIds: acknowledge(state.unsyncedQuestionIds, questionId), lastSyncError: errorMessage(error), isOnline: true }));
+              encounteredPermanentFailure = true;
+              if (kind === 'reconcile') { await get().refreshAttemptStatus().catch(() => {}); return; }
             }
           }
 
@@ -275,9 +299,16 @@ export const useExamStore = create<ExamState>()(
                 ...(data.status === 'TERMINATED' ? { status: 'TERMINATED' as ExamStatus } : {}),
               }));
               set({ isOnline: true });
-            } catch {
-              set({ isOnline: false });
-              return;
+            } catch (error) {
+              const kind = classifySyncFailure(error);
+              if (kind === 'network' || kind === 'retryable') {
+                set({ isOnline: kind !== 'network', lastSyncError: kind === 'retryable' ? `Server temporarily unavailable: ${errorMessage(error)}` : null });
+                scheduleRetry();
+                return;
+              }
+              set((state) => ({ unsyncedViolationIds: acknowledge(state.unsyncedViolationIds, clientViolationId), lastSyncError: errorMessage(error), isOnline: true }));
+              encounteredPermanentFailure = true;
+              if (kind === 'reconcile') { await get().refreshAttemptStatus().catch(() => {}); return; }
             }
           }
 
@@ -288,9 +319,22 @@ export const useExamStore = create<ExamState>()(
               const { data } = await api.post(`/exams/${examId}/submit`, { status: pendingSubmitStatus });
               set({ pendingSubmitStatus: null, isOnline: true, submissionReceipt: { attemptId: data.attemptId, status: data.status, submittedAt: data.submittedAt, serverConfirmedAt: data.serverConfirmedAt } });
               await get().fetchExamHistory();
-            } catch {
-              set({ isOnline: false });
+            } catch (error) {
+              const kind = classifySyncFailure(error);
+              if (kind === 'network' || kind === 'retryable') {
+                set({ isOnline: kind !== 'network', lastSyncError: kind === 'retryable' ? `Server temporarily unavailable: ${errorMessage(error)}` : null });
+                scheduleRetry();
+              } else {
+                set({ isOnline: true, lastSyncError: errorMessage(error) });
+                encounteredPermanentFailure = true;
+                if (kind === 'reconcile') await get().refreshAttemptStatus().catch(() => {});
+              }
             }
+          }
+          const remaining = get();
+          if (!encounteredPermanentFailure && remaining.unsyncedQuestionIds.length === 0 && remaining.unsyncedViolationIds.length === 0 && !remaining.pendingSubmitStatus) {
+            resetRetry();
+            set({ lastSyncError: null });
           }
         } finally {
           set({ isSyncing: false });
@@ -308,6 +352,7 @@ export const useExamStore = create<ExamState>()(
       },
 
       clearSession: () => {
+        resetRetry();
         set({
           status: 'NOT_STARTED',
           examId: null,
@@ -325,6 +370,7 @@ export const useExamStore = create<ExamState>()(
           submissionReceipt: null,
           maxViolations: 5,
           calculatorEnabled: false,
+          lastSyncError: null,
         });
       }
     }),
@@ -347,6 +393,7 @@ export const useExamStore = create<ExamState>()(
         submissionReceipt: state.submissionReceipt,
         maxViolations: state.maxViolations,
         calculatorEnabled: state.calculatorEnabled,
+        lastSyncError: state.lastSyncError,
       }),
     }
   )
