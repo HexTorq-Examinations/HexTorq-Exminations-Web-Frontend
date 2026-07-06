@@ -236,7 +236,7 @@ export function ExamsView({ role }: ExamsViewProps) {
                           <DropdownMenuItem className="cursor-pointer" onClick={() => handleDuplicate(exam)}>
                             <Copy className="mr-2 h-4 w-4 text-indigo-500" /> {exam.publishedAt ? 'Create Correction Version' : 'Duplicate'}
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="cursor-pointer">
+                          <DropdownMenuItem className="cursor-pointer" onClick={() => handleEdit(exam)}>
                             <Settings className="mr-2 h-4 w-4 text-slate-500" /> Configure Rules
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
