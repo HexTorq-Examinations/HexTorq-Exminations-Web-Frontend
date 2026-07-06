@@ -4,70 +4,86 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar, Clock, Bell, FileText, ChevronRight, MonitorPlay } from 'lucide-react';
-import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useExamStore } from '@/store/examStore';
+import { api } from '@/lib/api';
+import {
+  startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval,
+  isSameDay, isSameMonth, addMonths, subMonths, format, differenceInCalendarDays,
+} from 'date-fns';
+
+interface NotificationItem {
+  id: string;
+  title: string;
+  description: string;
+  time: string;
+  unread: boolean;
+}
 
 export default function StudentUpcomingExams() {
   const router = useRouter();
   const [instructionsOpen, setInstructionsOpen] = useState(false);
   const [selectedExam, setSelectedExam] = useState<any>(null);
   const { myMappings, examHistory, fetchMyMappings, fetchExamHistory } = useExamStore();
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date());
 
   useEffect(() => {
     fetchMyMappings();
     fetchExamHistory();
+    api.get('/messages/notifications').then(({ data }) => setNotifications(data)).catch(() => {});
   }, [fetchMyMappings, fetchExamHistory]);
 
   const upcomingExams = myMappings
     .filter(m => m.status !== 'Completed' && m.status !== 'Cancelled' && !(examHistory || []).some(h => h.examId === m.examId))
     .map(m => ({
-    id: m.examId,
-    mappingId: m.id,
-    title: m.examTitle || 'Exam',
-    subject: '',
-    code: `EXM-${(m.examId || '').toUpperCase()}`,
-    date: new Date(m.date).toLocaleDateString(),
-    time: m.startTime,
-    duration: `${m.startTime} - ${m.endTime}`,
-    marks: 0,
-    questions: 0,
-    assignedBy: 'System Admin',
-    status: m.status,
-  }));
+      id: m.examId,
+      mappingId: m.id,
+      title: m.examTitle || 'Exam',
+      subject: m.examSubject || '',
+      code: `EXM-${(m.examId || '').toUpperCase()}`,
+      dateObj: new Date(m.date),
+      date: new Date(m.date).toLocaleDateString(),
+      time: m.startTime,
+      duration: m.examDuration ? `${m.examDuration} mins` : `${m.startTime} - ${m.endTime}`,
+      marks: m.examTotalMarks || 0,
+      questions: m.examQuestionCount || 0,
+      assignedBy: 'System Admin',
+      status: m.status,
+    }))
+    .sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
 
-  // Sort the upcoming exams by nearest date
-  const sortedExams = [...upcomingExams].sort((a, b) => new Date(`${a.date} ${a.time}`).getTime() - new Date(`${b.date} ${b.time}`).getTime());
-  const nextExam = sortedExams[0];
-  
-  let nextExamDate = 'N/A';
-  let daysRemaining = '0';
-  if (nextExam) {
-    const nextDate = new Date(`${nextExam.date} ${nextExam.time}`);
-    nextExamDate = nextDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    const diffTime = Math.abs(nextDate.getTime() - new Date().getTime());
-    daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24)).toString();
-  }
+  const nextExam = upcomingExams[0];
+  const unreadCount = notifications.filter((n) => n.unread).length;
+  const daysRemaining = nextExam ? Math.max(0, differenceInCalendarDays(nextExam.dateObj, new Date())) : 0;
 
   const metrics = [
     { title: 'Total Upcoming Exams', value: upcomingExams.length.toString(), icon: FileText, color: 'text-blue-600', bg: 'bg-blue-100' },
-    { title: 'Next Exam Date', value: nextExamDate, icon: Calendar, color: 'text-emerald-600', bg: 'bg-emerald-100' },
-    { title: 'Days Remaining', value: daysRemaining, icon: Clock, color: 'text-purple-600', bg: 'bg-purple-100' },
-    { title: 'New Notifications', value: '0', icon: Bell, color: 'text-amber-600', bg: 'bg-amber-100' },
+    { title: 'Next Exam Date', value: nextExam ? format(nextExam.dateObj, 'MMM d') : '—', icon: Calendar, color: 'text-emerald-600', bg: 'bg-emerald-100' },
+    { title: 'Days Remaining', value: nextExam ? daysRemaining.toString() : '—', icon: Clock, color: 'text-purple-600', bg: 'bg-purple-100' },
+    { title: 'New Notifications', value: unreadCount.toString(), icon: Bell, color: 'text-amber-600', bg: 'bg-amber-100' },
   ];
+
+  const calendarDays = useMemo(() => {
+    const start = startOfWeek(startOfMonth(calendarMonth));
+    const end = endOfWeek(endOfMonth(calendarMonth));
+    return eachDayOfInterval({ start, end });
+  }, [calendarMonth]);
+
+  const examDatesInMonth = upcomingExams.filter((e) => isSameMonth(e.dateObj, calendarMonth));
 
   return (
     <div className="space-y-6 pb-10">
-      <PageHeader 
-        title="Upcoming Exams" 
+      <PageHeader
+        title="Upcoming Exams"
         description="View all scheduled examinations assigned to you."
         breadcrumbs={[{ label: 'Student', href: '/student/dashboard' }, { label: 'Upcoming Exams' }]}
         showSearch={false}
       />
-      
+
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {metrics.map((stat, i) => (
@@ -86,7 +102,7 @@ export default function StudentUpcomingExams() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
+
         {/* Main Content (70%) */}
         <div className="lg:col-span-8 space-y-6">
           {upcomingExams.length === 0 ? (
@@ -108,7 +124,7 @@ export default function StudentUpcomingExams() {
                   <div className="flex flex-col md:flex-row justify-between md:items-start gap-4">
                     <div>
                       <div className="flex items-center gap-2 mb-2">
-                        <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-0">{exam.subject}</Badge>
+                        {exam.subject && <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-0">{exam.subject}</Badge>}
                         <Badge variant="outline" className="text-slate-500 font-mono">{exam.code}</Badge>
                       </div>
                       <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{exam.title}</h3>
@@ -172,53 +188,65 @@ export default function StudentUpcomingExams() {
 
         {/* Right Sidebar (30%) */}
         <div className="lg:col-span-4 space-y-6">
-          {/* Calendar placeholder */}
+          {/* Real calendar, current month, real exam dates highlighted */}
           <Card className="border-slate-200 dark:border-slate-800 shadow-sm">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-slate-900 dark:text-slate-100">October 2026</h3>
+                <h3 className="font-bold text-slate-900 dark:text-slate-100">{format(calendarMonth, 'MMMM yyyy')}</h3>
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="icon" className="h-7 w-7"><ChevronRight className="h-4 w-4 rotate-180" /></Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7"><ChevronRight className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCalendarMonth((m) => subMonths(m, 1))}>
+                    <ChevronRight className="h-4 w-4 rotate-180" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCalendarMonth((m) => addMonths(m, 1))}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
               <div className="grid grid-cols-7 gap-1 text-center text-sm mb-2 font-medium text-slate-500">
                 <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
               </div>
               <div className="grid grid-cols-7 gap-1 text-center text-sm">
-                {/* Mock calendar days */}
-                <div className="p-2 text-slate-300">27</div><div className="p-2 text-slate-300">28</div><div className="p-2 text-slate-300">29</div><div className="p-2 text-slate-300">30</div>
-                <div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">1</div><div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">2</div><div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">3</div>
-                <div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">4</div><div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">5</div><div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">6</div><div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">7</div><div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">8</div><div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">9</div><div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">10</div>
-                <div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">11</div><div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">12</div><div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">13</div><div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">14</div><div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">15</div><div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">16</div><div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">17</div>
-                <div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">18</div><div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">19</div><div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">20</div><div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">21</div><div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">22</div><div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">23</div><div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">24</div>
-                <div className="p-2 rounded-lg bg-blue-600 text-white font-bold cursor-pointer shadow-sm relative">25<span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-white rounded-full"></span></div><div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">26</div><div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">27</div><div className="p-2 rounded-lg bg-blue-100 text-blue-700 font-bold cursor-pointer relative">28<span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-blue-600 rounded-full"></span></div><div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">29</div><div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">30</div><div className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer">31</div>
+                {calendarDays.map((day) => {
+                  const inMonth = isSameMonth(day, calendarMonth);
+                  const isToday = isSameDay(day, new Date());
+                  const hasExam = examDatesInMonth.some((e) => isSameDay(e.dateObj, day));
+                  return (
+                    <div
+                      key={day.toISOString()}
+                      className={`p-2 rounded-lg relative ${!inMonth ? 'text-slate-300 dark:text-slate-700' : 'hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer'} ${isToday ? 'bg-blue-600 text-white font-bold shadow-sm' : hasExam ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
+                    >
+                      {day.getDate()}
+                      {hasExam && (
+                        <span className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${isToday ? 'bg-white' : 'bg-blue-600'}`}></span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
 
-          {/* Important Announcements */}
+          {/* Real notifications */}
           <Card className="border-slate-200 dark:border-slate-800 shadow-sm">
             <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800">
               <CardTitle className="text-sm font-bold uppercase tracking-wider text-slate-500">Important Announcements</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                <div className="p-4 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
-                  <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>
-                    Updated Browser Requirements
-                  </h4>
-                  <p className="text-xs text-slate-500 mt-1 line-clamp-2">Ensure you are using the latest version of Chrome or Edge for the secure browser to function properly.</p>
+              {notifications.length === 0 ? (
+                <div className="p-4 text-sm text-slate-400">No announcements right now.</div>
+              ) : (
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {notifications.slice(0, 3).map((n) => (
+                    <div key={n.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
+                      <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${n.unread ? 'bg-red-500' : 'bg-slate-300'}`}></span>
+                        {n.title}
+                      </h4>
+                      <p className="text-xs text-slate-500 mt-1 line-clamp-2">{n.description}</p>
+                    </div>
+                  ))}
                 </div>
-                <div className="p-4 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
-                  <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
-                    CS302 Time Change
-                  </h4>
-                  <p className="text-xs text-slate-500 mt-1 line-clamp-2">The database management exam has been moved from 10 AM to 2 PM on Oct 28.</p>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -229,7 +257,7 @@ export default function StudentUpcomingExams() {
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>{selectedExam.title}</DialogTitle>
-              <DialogDescription>Exam Code: {selectedExam.code} · {selectedExam.subject}</DialogDescription>
+              <DialogDescription>Exam Code: {selectedExam.code}{selectedExam.subject ? ` · ${selectedExam.subject}` : ''}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 text-sm text-slate-600 dark:text-slate-400">
               <div className="grid grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-900 p-4 rounded-lg">
@@ -242,7 +270,7 @@ export default function StudentUpcomingExams() {
                 <li>Ensure you are in a quiet, well-lit environment.</li>
                 <li>Camera and microphone must remain active throughout the exam.</li>
                 <li>Tab switching, window minimizing, or fullscreen exit will be recorded as violations.</li>
-                <li>Maximum 3 violations are allowed before the exam is auto-submitted.</li>
+                <li>Maximum 5 violations are allowed before the exam is auto-submitted.</li>
                 <li>Do not use any unauthorized materials or devices.</li>
               </ul>
             </div>

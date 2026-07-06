@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -41,10 +42,18 @@ export function MessagingView({ role }: MessagingViewProps) {
   const [draft, setDraft] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const canCreateGroup = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
+  const searchParams = useSearchParams();
+  const requestedConversationId = searchParams.get('conversationId');
 
   useEffect(() => {
     fetchConversations();
   }, [fetchConversations]);
+
+  // Deep-link support: /messages?conversationId=X (used by notification links) opens
+  // that conversation directly instead of landing on the empty conversation list.
+  useEffect(() => {
+    if (requestedConversationId) openConversation(requestedConversationId);
+  }, [requestedConversationId, openConversation]);
 
   useEffect(() => {
     if (composeMode) searchUsers(query);

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Clock, CheckCircle2, MessageSquare, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { api } from '@/lib/api';
-import { useMessagingStore } from '@/store/messagingStore';
+import { useRouter } from 'next/navigation';
 
 interface NotificationItem {
   id: string;
@@ -32,7 +32,7 @@ const timeAgo = (iso: string) => {
 export default function StudentNotifications() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { openPanel, openConversation } = useMessagingStore();
+  const router = useRouter();
 
   useEffect(() => {
     let cancelled = false;
@@ -43,8 +43,7 @@ export default function StudentNotifications() {
   }, []);
 
   const handleOpen = (conversationId: string) => {
-    openPanel();
-    openConversation(conversationId);
+    router.push(`/student/messages?conversationId=${conversationId}`);
   };
 
   const hasNotifications = notifications.length > 0;
