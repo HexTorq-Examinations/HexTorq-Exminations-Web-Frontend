@@ -187,7 +187,7 @@ export function ExamsView({ role }: ExamsViewProps) {
                   <TableRow key={exam.id} className="border-slate-200 dark:border-slate-800 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900/50">
                     <TableCell>
                       <div className="flex flex-col">
-                        <span className="font-medium text-slate-900 dark:text-slate-100">{exam.title}</span>
+                        <span className="flex items-center gap-2 font-medium text-slate-900 dark:text-slate-100">{exam.title}{exam.isTestExam && <Badge className="border-0 bg-amber-100 text-amber-700">TEST</Badge>}</span>
                         <span className="text-xs text-slate-500">{exam.questionCount || 0} Questions • {exam.totalMarks} Marks</span>
                       </div>
                     </TableCell>

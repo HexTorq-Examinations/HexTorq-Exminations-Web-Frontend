@@ -101,6 +101,7 @@ export function ResultsView({ role }: ResultsViewProps) {
   const openAttempt = async (id: string) => {
     const { data } = await api.get(`/results/attempts/${id}`);
     setAttemptDetail(data);
+    setAttemptsOpen(false);
   };
 
   const actionWithReason = async (action: 'regrade' | 'reset' | 'extend' | 'evaluate') => {
@@ -286,7 +287,7 @@ export function ResultsView({ role }: ResultsViewProps) {
                   <TableRow key={result.id} className="border-slate-200 dark:border-slate-800 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900/50">
                     <TableCell>
                       <div className="flex flex-col">
-                        <span className="font-medium text-slate-900 dark:text-slate-100">{result.examName}</span>
+                        <span className="flex items-center gap-2 font-medium text-slate-900 dark:text-slate-100">{result.examName}{result.isTestExam && <Badge className="bg-amber-100 text-amber-700">TEST</Badge>}</span>
                         <span className="text-xs text-slate-500">ID: {result.examId}</span>
                       </div>
                     </TableCell>
@@ -355,17 +356,31 @@ export function ResultsView({ role }: ResultsViewProps) {
       </Dialog>
 
       <Dialog open={!!attemptDetail} onOpenChange={(open) => { if (!open) setAttemptDetail(null); }}>
-        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{attemptDetail?.student.name} — {attemptDetail?.exam.title}</DialogTitle></DialogHeader>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => actionWithReason('evaluate')}>Manual Score</Button>
-            <Button size="sm" variant="outline" onClick={() => actionWithReason('regrade')}>Regrade Snapshot</Button>
-            <Button size="sm" variant="outline" onClick={() => actionWithReason('extend')}>Extend Time</Button>
-            <Button size="sm" variant="destructive" onClick={() => actionWithReason('reset')}>Reset Attempt</Button>
-            <Button size="sm" variant="outline" onClick={() => download(`/results/attempts/${attemptDetail?.id}/scorecard.pdf`, 'scorecard.pdf')}>Scorecard PDF</Button>
+        <DialogContent className="!h-[88vh] !w-[80vw] !max-w-[80vw] grid-rows-[auto_minmax(0,1fr)] overflow-hidden p-0 gap-0">
+          <div className="flex items-start justify-between border-b px-6 py-4 pr-14">
+            <DialogHeader><DialogTitle>{attemptDetail?.student.name} — {attemptDetail?.exam.title}</DialogTitle><p className="text-xs text-slate-500">Attempt {attemptDetail?.id}</p></DialogHeader>
+            <Button size="sm" onClick={() => download(`/results/attempts/${attemptDetail?.id}/response.pdf`, `${attemptDetail?.student.registerNumber || 'student'}-response.pdf`)}><Download className="mr-2 h-4 w-4" />Download response PDF</Button>
           </div>
-          <p className="font-semibold">Score: {attemptDetail?.score} / {attemptDetail?.exam.totalMarks} · Violations: {attemptDetail?.violations?.length || 0}</p>
-          <div className="space-y-3">{attemptDetail?.questions.map((question, index) => <div key={question.id} className="border rounded-lg p-3 text-sm"><p className="font-medium">{index + 1}. {question.text}</p><p className="text-slate-600">Selected: {question.selectedAnswer || 'Unanswered'}</p><p className="text-emerald-600">Correct: {question.correctAnswer}</p></div>)}</div>
+          <div className="grid min-h-0 flex-1 grid-cols-[230px_1fr] overflow-hidden">
+            <aside className="border-r bg-slate-50 p-5 text-sm">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Score</p><p className="mt-1 text-2xl font-bold">{attemptDetail?.score} / {attemptDetail?.exam.totalMarks}</p>
+              <div className="mt-5 space-y-3 text-slate-600"><p><b>Status:</b> {attemptDetail?.status}</p><p><b>Register no:</b> {attemptDetail?.student.registerNumber || '—'}</p><p><b>Questions:</b> {attemptDetail?.questions.length || 0}</p><p><b>Violations:</b> {attemptDetail?.violations?.length || 0}</p></div>
+              <div className="mt-6 border-t pt-4"><p className="mb-2 font-semibold">Legend</p><p className="text-emerald-700">Green: correct selection</p><p className="text-red-700">Red: incorrect selection</p><p className="text-slate-500">Grey: unanswered</p></div>
+            </aside>
+            <main className="overflow-y-auto p-6">
+              <div className="mx-auto max-w-4xl space-y-4">{attemptDetail?.questions.map((question, index) => {
+                const answered = !!question.selectedAnswer; const correct = question.selectedAnswer === question.correctAnswer;
+                return <section key={question.id} className="rounded-xl border bg-white p-5 text-sm">
+                  <div className="flex justify-between gap-4"><h3 className="text-base font-semibold">{index + 1}. {question.text}</h3><Badge variant="outline">{question.marks} marks</Badge></div>
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">{question.options?.map((option, optionIndex) => {
+                    const selected = option === question.selectedAnswer; const isCorrect = option === question.correctAnswer;
+                    return <div key={optionIndex} className={`rounded-lg border p-3 ${selected && correct ? 'border-emerald-400 bg-emerald-50' : selected ? 'border-red-400 bg-red-50' : isCorrect ? 'border-emerald-300 bg-emerald-50/50' : 'bg-slate-50'}`}><b className="mr-2">{String.fromCharCode(65 + optionIndex)}.</b>{option}{selected && <span className="ml-2 text-xs font-semibold">Student selected</span>}</div>;
+                  })}</div>
+                  {!answered && <p className="mt-3 rounded bg-slate-100 p-2 text-slate-500">Student did not answer this question.</p>}
+                </section>;
+              })}</div>
+            </main>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

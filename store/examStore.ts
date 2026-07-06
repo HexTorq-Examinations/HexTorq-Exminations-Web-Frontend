@@ -53,6 +53,7 @@ interface ExamState {
   isPaused: boolean;
   violations: Violation[];
   maxViolations: number;
+  calculatorEnabled: boolean;
   answers: Record<string, string>; // questionId -> answer text
   examHistory: ExamHistoryEntry[];
   myMappings: ExamMapping[];
@@ -95,6 +96,7 @@ export const useExamStore = create<ExamState>()(
       isPaused: false,
       violations: [],
       maxViolations: 5, // 5 warnings allowed; the 6th auto-terminates
+      calculatorEnabled: false,
       answers: {},
       examHistory: [],
       myMappings: [],
@@ -118,6 +120,8 @@ export const useExamStore = create<ExamState>()(
           serverTimeOffsetMs,
           timeRemaining: serverRemainingSeconds(expiresAt, serverTimeOffsetMs),
           violations: (data.violations || []).map((v: any) => ({ ...v, clientViolationId: v.clientViolationId || v.id })),
+          maxViolations: data.maxViolations || 5,
+          calculatorEnabled: !!data.calculatorEnabled,
           answers: data.answers || {},
           isPaused: false,
           unsyncedQuestionIds: [],
@@ -200,7 +204,7 @@ export const useExamStore = create<ExamState>()(
           description,
         };
         const updatedViolations = [...violations, violation];
-        const shouldTerminate = updatedViolations.length > maxViolations;
+        const shouldTerminate = updatedViolations.length >= maxViolations;
 
         set((state) => ({
           violations: updatedViolations,
@@ -319,6 +323,8 @@ export const useExamStore = create<ExamState>()(
           unsyncedViolationIds: [],
           pendingSubmitStatus: null,
           submissionReceipt: null,
+          maxViolations: 5,
+          calculatorEnabled: false,
         });
       }
     }),
@@ -339,6 +345,8 @@ export const useExamStore = create<ExamState>()(
         unsyncedViolationIds: state.unsyncedViolationIds,
         pendingSubmitStatus: state.pendingSubmitStatus,
         submissionReceipt: state.submissionReceipt,
+        maxViolations: state.maxViolations,
+        calculatorEnabled: state.calculatorEnabled,
       }),
     }
   )

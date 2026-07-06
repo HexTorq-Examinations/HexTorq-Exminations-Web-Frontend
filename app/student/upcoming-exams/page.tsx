@@ -39,6 +39,7 @@ export default function StudentUpcomingExams() {
   const { myMappings, examHistory, fetchMyMappings, fetchExamHistory } = useExamStore();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState(() => new Date());
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -72,6 +73,9 @@ export default function StudentUpcomingExams() {
         questions: m.examQuestionCount || 0,
         assignedBy: 'System Admin',
         status: m.status,
+        maxViolations: m.examMaxViolations || 5,
+        calculatorEnabled: !!m.examCalculatorEnabled,
+        isTestExam: !!m.examIsTest,
       };
     })
     .sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
@@ -94,6 +98,7 @@ export default function StudentUpcomingExams() {
   }, [calendarMonth]);
 
   const examDatesInMonth = upcomingExams.filter((e) => isSameMonth(e.dateObj, calendarMonth));
+  const selectedDateExams = upcomingExams.filter((e) => isSameDay(e.dateObj, selectedCalendarDate));
 
   return (
     <div className="space-y-6 pb-10">
@@ -145,6 +150,7 @@ export default function StudentUpcomingExams() {
                     <div>
                       <div className="flex items-center gap-2 mb-2">
                         {exam.subject && <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-0">{exam.subject}</Badge>}
+                        {exam.isTestExam && <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-0">TEST EXAM</Badge>}
                         <Badge variant="outline" className="text-slate-500 font-mono">{exam.code}</Badge>
                       </div>
                       <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{exam.title}</h3>
@@ -230,17 +236,30 @@ export default function StudentUpcomingExams() {
                   const isToday = isSameDay(day, new Date());
                   const hasExam = examDatesInMonth.some((e) => isSameDay(e.dateObj, day));
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={day.toISOString()}
-                      className={`p-2 rounded-lg relative ${!inMonth ? 'text-slate-300 dark:text-slate-700' : 'hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer'} ${isToday ? 'bg-blue-600 text-white font-bold shadow-sm' : hasExam ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
+                      onClick={() => { setSelectedCalendarDate(day); if (!inMonth) setCalendarMonth(day); }}
+                      aria-label={`${format(day, 'MMMM d')}${hasExam ? ', exam scheduled' : ''}`}
+                      aria-pressed={isSameDay(day, selectedCalendarDate)}
+                      className={`p-2 rounded-lg relative ${!inMonth ? 'text-slate-300 dark:text-slate-700' : 'hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer'} ${isToday ? 'bg-blue-600 text-white font-bold shadow-sm' : hasExam ? 'bg-blue-100 text-blue-700 font-bold' : ''} ${isSameDay(day, selectedCalendarDate) ? 'ring-2 ring-indigo-500 ring-offset-1' : ''}`}
                     >
                       {day.getDate()}
                       {hasExam && (
                         <span className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${isToday ? 'bg-white' : 'bg-blue-600'}`}></span>
                       )}
-                    </div>
+                    </button>
                   );
                 })}
+              </div>
+              <div className="mt-5 border-t pt-4">
+                <p className="mb-3 text-sm font-semibold">{format(selectedCalendarDate, 'EEEE, MMMM d')}</p>
+                {selectedDateExams.length ? <div className="space-y-2">{selectedDateExams.map(exam => (
+                  <button key={exam.mappingId} type="button" onClick={() => { setSelectedExam(exam); setInstructionsOpen(true); }} className="w-full rounded-lg border border-blue-100 bg-blue-50 p-3 text-left hover:border-blue-300">
+                    <span className="flex items-center gap-2 font-semibold text-slate-900">{exam.title}{exam.isTestExam && <Badge className="bg-amber-100 text-amber-700">TEST</Badge>}</span>
+                    <span className="mt-1 block text-xs text-slate-600">{exam.time} · {exam.duration} · {exam.marks} marks</span>
+                  </button>
+                ))}</div> : <p className="text-sm text-slate-500">No exams scheduled for this date.</p>}
               </div>
             </CardContent>
           </Card>
@@ -284,11 +303,13 @@ export default function StudentUpcomingExams() {
                 <div><p className="font-semibold text-slate-900 dark:text-slate-100">Total Marks</p><p>{selectedExam.marks}</p></div>
                 <div><p className="font-semibold text-slate-900 dark:text-slate-100">Questions</p><p>{selectedExam.questions}</p></div>
                 <div><p className="font-semibold text-slate-900 dark:text-slate-100">Assigned By</p><p>{selectedExam.assignedBy}</p></div>
+                <div><p className="font-semibold text-slate-900 dark:text-slate-100">Violations</p><p>Auto-submit at {selectedExam.maxViolations}</p></div>
+                <div><p className="font-semibold text-slate-900 dark:text-slate-100">Calculator</p><p>{selectedExam.calculatorEnabled ? 'Allowed' : 'Not allowed'}</p></div>
               </div>
               <ul className="list-disc list-inside space-y-2">
                 <li>Ensure you are in a quiet, well-lit environment.</li>
                 <li>Tab switching, window minimizing, or fullscreen exit will be recorded as violations.</li>
-                <li>Maximum 5 violations are allowed before the exam is auto-submitted.</li>
+                <li>The exam is auto-submitted when {selectedExam.maxViolations} violations are reached.</li>
                 <li>Do not use any unauthorized materials or devices.</li>
               </ul>
             </div>

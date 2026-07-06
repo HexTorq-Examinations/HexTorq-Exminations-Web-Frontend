@@ -85,7 +85,7 @@ export default function StudentDashboard() {
                     <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-bold uppercase tracking-wider">Up Next</span>
                   </div>
                   <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">
-                    {nextExam ? nextExam.examTitle : 'No upcoming exams'}
+                    {nextExam ? `${nextExam.examTitle}${nextExam.examIsTest ? ' · TEST EXAM' : ''}` : 'No upcoming exams'}
                   </h3>
                   {nextExam && (
                     <p className="text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2">
@@ -122,7 +122,7 @@ export default function StudentDashboard() {
                         <Calendar className="w-5 h-5" />
                       </div>
                       <div>
-                        <h4 className="font-semibold text-slate-900 dark:text-slate-100">{mapping.examTitle}</h4>
+                        <h4 className="font-semibold text-slate-900 dark:text-slate-100">{mapping.examTitle}{mapping.examIsTest ? ' · TEST EXAM' : ''}</h4>
                         <div className="flex items-center gap-3 mt-1 text-sm text-slate-500">
                           <span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">EXAM</span>
                           <span>{new Date(mapping.date).toLocaleDateString()} • {mapping.startTime}</span>
@@ -228,7 +228,7 @@ export default function StudentDashboard() {
               <div className="h-px bg-slate-100 dark:bg-slate-800"></div>
               <div>
                 <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Stay in Fullscreen</h4>
-                <p className="text-xs text-slate-500 mt-1">Exiting fullscreen or switching tabs during the exam counts as a violation — up to 5 are allowed before auto-submission.</p>
+                <p className="text-xs text-slate-500 mt-1">Exiting fullscreen or switching tabs during the exam counts as a violation. The limit is configured separately for each exam.</p>
               </div>
             </CardContent>
           </Card>

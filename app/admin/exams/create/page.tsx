@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { useAdminStore } from '@/store/adminStore';
 import { ArrowLeft, Save } from 'lucide-react';
 import Link from 'next/link';
+import { Switch } from '@/components/ui/switch';
 
 export default function CreateExamPage() {
   const router = useRouter();
@@ -21,13 +22,16 @@ export default function CreateExamPage() {
     totalMarks: 100,
     passingMarks: 40,
     status: 'Draft' as const,
+    maxViolations: 5,
+    calculatorEnabled: false,
+    isTestExam: false,
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title) return;
 
-    addExam({
+    await addExam({
       title: formData.title,
       subject: 'General',
       duration: Number(formData.duration),
@@ -36,7 +40,10 @@ export default function CreateExamPage() {
       status: formData.status,
       shuffleQuestions: false,
       shuffleOptions: false,
-      negativeMarking: false
+      negativeMarking: false,
+      maxViolations: formData.maxViolations,
+      calculatorEnabled: formData.calculatorEnabled,
+      isTestExam: formData.isTestExam,
     });
 
     router.push('/admin/exams');
@@ -113,6 +120,15 @@ export default function CreateExamPage() {
                   required
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="maxViolations">Maximum Violations</Label>
+                <Input id="maxViolations" type="number" min="1" max="50" value={formData.maxViolations} onChange={(e) => setFormData({...formData, maxViolations: Number(e.target.value)})} required />
+                <p className="text-xs text-slate-500">The attempt auto-submits when this count is reached.</p>
+              </div>
+            </div>
+            <div className="space-y-4 rounded-lg border bg-slate-50 p-4 dark:bg-slate-900/50">
+              <div className="flex items-center justify-between"><div><Label htmlFor="calculatorEnabled">Allow Calculator</Label><p className="text-xs text-slate-500">Shows the built-in calculator during this exam.</p></div><Switch id="calculatorEnabled" checked={formData.calculatorEnabled} onCheckedChange={(value) => setFormData({...formData, calculatorEnabled: value})} /></div>
+              <div className="flex items-center justify-between"><div><Label htmlFor="isTestExam">Test Exam</Label><p className="text-xs text-slate-500">Labels this as a practice/testing examination.</p></div><Switch id="isTestExam" checked={formData.isTestExam} onCheckedChange={(value) => setFormData({...formData, isTestExam: value})} /></div>
             </div>
           </CardContent>
           <CardFooter className="bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800 p-6 flex justify-end gap-3">

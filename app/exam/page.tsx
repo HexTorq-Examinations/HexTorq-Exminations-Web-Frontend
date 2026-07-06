@@ -27,7 +27,7 @@ function SecureExamInterface() {
   const {
     status, examId: storeExamId, startExam, refreshAttemptStatus, endExam, timeRemaining, tickTimer, answers, saveAnswer,
     violations, clearSession, isPaused, setIsPaused, isOnline, unsyncedQuestionIds,
-    unsyncedViolationIds, pendingSubmitStatus, submissionReceipt,
+    unsyncedViolationIds, pendingSubmitStatus, submissionReceipt, calculatorEnabled,
   } = useExamStore();
   const { violationsCount, maxViolations, requestFullscreen, hasExceededViolations, isTerminated } = useProctoring();
   const pendingSyncCount = unsyncedQuestionIds.length + unsyncedViolationIds.length + (pendingSubmitStatus ? 1 : 0);
@@ -314,10 +314,10 @@ function SecureExamInterface() {
           <div className="flex justify-between items-center mb-4 md:mb-6">
             <h2 className="text-2xl font-bold text-slate-900">Question {currentQuestionIdx + 1}</h2>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setShowCalculator(!showCalculator)} className="bg-white px-2 md:px-3 text-xs md:text-sm">
-                <Calculator className="w-4 h-4 md:mr-2" />
-                <span className="hidden md:inline">Calculator</span>
-              </Button>
+            {calculatorEnabled && <Button variant="outline" size="sm" onClick={() => setShowCalculator(!showCalculator)} className="bg-white px-2 md:px-3 text-xs md:text-sm">
+              <Calculator className="w-4 h-4 md:mr-2" />
+              <span className="hidden md:inline">Calculator</span>
+            </Button>}
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -437,7 +437,7 @@ function SecureExamInterface() {
         </aside>
       </div>
       
-      <FloatingCalculator isOpen={showCalculator} onClose={() => setShowCalculator(false)} />
+      {calculatorEnabled && <FloatingCalculator isOpen={showCalculator} onClose={() => setShowCalculator(false)} />}
 
       <ConfirmDialog
         open={showSubmitConfirm}

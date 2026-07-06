@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import { useExamStore } from '@/store/examStore';
 import { api } from '@/lib/api';
 import { getTemporalStatus, hasCompletedMapping } from '@/lib/examMappingStatus';
+import { Badge } from '@/components/ui/badge';
 
 interface AttemptStatus {
   hasActiveAttempt: boolean;
@@ -61,6 +62,7 @@ export default function StudentActiveExams() {
       questionsRemaining: Math.max(0, totalQuestions - answered),
       totalQuestions,
       progress: totalQuestions > 0 ? Math.round((answered / totalQuestions) * 100) : 0,
+      isTestExam: !!m.examIsTest,
     };
   });
 
@@ -142,7 +144,7 @@ export default function StudentActiveExams() {
                       <div className="space-y-4 flex-1">
                         <div>
                           {exam.subject && <p className="text-sm font-semibold text-blue-600 dark:text-blue-400 mb-1">{exam.subject}</p>}
-                          <h3 className="text-3xl font-bold text-slate-900 dark:text-slate-100">{exam.title}</h3>
+                          <h3 className="flex items-center gap-3 text-3xl font-bold text-slate-900 dark:text-slate-100">{exam.title}{exam.isTestExam && <Badge className="bg-amber-100 text-amber-700">TEST EXAM</Badge>}</h3>
                         </div>
 
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">

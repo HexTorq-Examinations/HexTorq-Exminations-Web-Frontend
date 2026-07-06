@@ -25,6 +25,9 @@ export function ExamFormModal({ open, onOpenChange, examToEdit }: ExamFormModalP
       shuffleQuestions: false,
       shuffleOptions: false,
       negativeMarking: false,
+      maxViolations: 5,
+      calculatorEnabled: false,
+      isTestExam: false,
     }
   });
 
@@ -33,7 +36,7 @@ export function ExamFormModal({ open, onOpenChange, examToEdit }: ExamFormModalP
       if (examToEdit) {
         reset(examToEdit);
       } else {
-        reset({ status: 'Draft', shuffleQuestions: false, shuffleOptions: false, negativeMarking: false });
+        reset({ status: 'Draft', shuffleQuestions: false, shuffleOptions: false, negativeMarking: false, maxViolations: 5, calculatorEnabled: false, isTestExam: false });
       }
     }
   }, [open, examToEdit, reset]);
@@ -50,6 +53,8 @@ export function ExamFormModal({ open, onOpenChange, examToEdit }: ExamFormModalP
   const watchShuffle = watch('shuffleQuestions');
   const watchShuffleOptions = watch('shuffleOptions');
   const watchNegative = watch('negativeMarking');
+  const watchCalculator = watch('calculatorEnabled');
+  const watchTestExam = watch('isTestExam');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -114,6 +119,21 @@ export function ExamFormModal({ open, onOpenChange, examToEdit }: ExamFormModalP
               <div className="flex items-center justify-between">
                 <Label htmlFor="negative" className="font-normal cursor-pointer text-sm">Enable Negative Marking (25% deduction)</Label>
                 <Switch id="negative" checked={watchNegative} onCheckedChange={(val) => setValue('negativeMarking', val)} />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-[1fr_150px] sm:items-end">
+                <div>
+                  <Label htmlFor="maxViolations" className="text-sm">Maximum violations before auto-submit</Label>
+                  <p className="mt-1 text-xs text-slate-500">The attempt is terminated when this count is reached.</p>
+                </div>
+                <Input id="maxViolations" type="number" min="1" max="50" {...register('maxViolations')} />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="calculatorEnabled" className="font-normal cursor-pointer text-sm">Allow calculator during the exam</Label>
+                <Switch id="calculatorEnabled" checked={watchCalculator} onCheckedChange={(val) => setValue('calculatorEnabled', val)} />
+              </div>
+              <div className="flex items-center justify-between">
+                <div><Label htmlFor="isTestExam" className="font-normal cursor-pointer text-sm">Mark as test exam</Label><p className="text-xs text-slate-500">Clearly identifies practice/testing exams to admins and students.</p></div>
+                <Switch id="isTestExam" checked={watchTestExam} onCheckedChange={(val) => setValue('isTestExam', val)} />
               </div>
             </div>
 
