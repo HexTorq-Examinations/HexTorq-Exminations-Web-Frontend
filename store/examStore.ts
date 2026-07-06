@@ -16,7 +16,10 @@ export interface Violation {
 export interface ExamHistoryEntry {
   examId: string;
   status: 'COMPLETED' | 'TERMINATED';
-  score: number;
+  // Score is only ever non-null once the Admin has published the Result for this exam;
+  // resultStatus tells the UI which case it is so it never guesses.
+  resultStatus: 'Published' | 'Pending Evaluation';
+  score: number | null;
   date: number;
 }
 
@@ -26,6 +29,8 @@ interface ExamState {
   examId: string | null;
   status: ExamStatus;
   startTime: number | null;
+  expiresAt: number | null;
+  serverTimeOffsetMs: number;
   endTime: number | null;
   timeRemaining: number; // in seconds
   isPaused: boolean;
@@ -46,6 +51,7 @@ interface ExamState {
 
   // Actions
   startExam: (examId: string) => Promise<number>;
+  refreshAttemptStatus: () => Promise<void>;
   endExam: (status?: ExamStatus) => void;
   setIsPaused: (paused: boolean) => void;
   tickTimer: () => void;
@@ -64,6 +70,8 @@ export const useExamStore = create<ExamState>()(
       examId: null,
       status: 'NOT_STARTED',
       startTime: null,
+      expiresAt: null,
+      serverTimeOffsetMs: 0,
       endTime: null,
       timeRemaining: 0,
       isPaused: false,
@@ -81,11 +89,15 @@ export const useExamStore = create<ExamState>()(
 
       startExam: async (examId: string) => {
         const { data } = await api.post(`/exams/${examId}/start`);
+        const serverTimeOffsetMs = new Date(data.serverNow).getTime() - Date.now();
+        const expiresAt = new Date(data.expiresAt).getTime();
         set({
           examId,
           status: 'IN_PROGRESS',
-          startTime: Date.now(),
-          timeRemaining: data.durationSeconds,
+          startTime: new Date(data.startedAt).getTime(),
+          expiresAt,
+          serverTimeOffsetMs,
+          timeRemaining: Math.max(0, Math.ceil((expiresAt - (Date.now() + serverTimeOffsetMs)) / 1000)),
           violations: (data.violations || []).map((v: any) => ({ ...v, clientViolationId: v.clientViolationId || v.id })),
           answers: data.answers || {},
           isPaused: false,
@@ -94,6 +106,33 @@ export const useExamStore = create<ExamState>()(
           pendingSubmitStatus: null,
         });
         return data.durationSeconds;
+      },
+
+      refreshAttemptStatus: async () => {
+        const { examId, status } = get();
+        if (!examId || status !== 'IN_PROGRESS') return;
+        const { data } = await api.get(`/exams/${examId}/my-attempt`);
+        const serverTimeOffsetMs = new Date(data.serverNow).getTime() - Date.now();
+
+        if (!data.hasActiveAttempt && data.status === 'COMPLETED') {
+          set({
+            status: 'COMPLETED',
+            timeRemaining: 0,
+            endTime: Date.now() + serverTimeOffsetMs,
+            pendingSubmitStatus: null,
+            serverTimeOffsetMs,
+          });
+          return;
+        }
+
+        if (data.hasActiveAttempt && data.expiresAt) {
+          const expiresAt = new Date(data.expiresAt).getTime();
+          set({
+            expiresAt,
+            serverTimeOffsetMs,
+            timeRemaining: Math.max(0, Math.ceil((expiresAt - (Date.now() + serverTimeOffsetMs)) / 1000)),
+          });
+        }
       },
 
       // Optimistic: flips local status immediately so the UI (and the student) treat the
@@ -115,13 +154,12 @@ export const useExamStore = create<ExamState>()(
       },
 
       tickTimer: () => {
-        const { timeRemaining, status, isPaused } = get();
-        if (status === 'IN_PROGRESS' && !isPaused && timeRemaining > 0) {
-          set({ timeRemaining: timeRemaining - 1 });
-          if (timeRemaining - 1 === 0) {
-            get().endExam('COMPLETED');
-          }
-        }
+        const { status, expiresAt, serverTimeOffsetMs } = get();
+        if (status !== 'IN_PROGRESS' || !expiresAt) return;
+
+        const remaining = Math.max(0, Math.ceil((expiresAt - (Date.now() + serverTimeOffsetMs)) / 1000));
+        set({ timeRemaining: remaining });
+        if (remaining === 0) get().endExam('COMPLETED');
       },
 
       // Violations are decided locally (so a lost connection can't let a student dodge
@@ -248,6 +286,8 @@ export const useExamStore = create<ExamState>()(
           status: 'NOT_STARTED',
           examId: null,
           startTime: null,
+          expiresAt: null,
+          serverTimeOffsetMs: 0,
           endTime: null,
           timeRemaining: 0,
           isPaused: false,
@@ -265,6 +305,8 @@ export const useExamStore = create<ExamState>()(
         examId: state.examId,
         status: state.status,
         startTime: state.startTime,
+        expiresAt: state.expiresAt,
+        serverTimeOffsetMs: state.serverTimeOffsetMs,
         endTime: state.endTime,
         timeRemaining: state.timeRemaining,
         isPaused: state.isPaused,

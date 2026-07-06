@@ -44,6 +44,7 @@ export function ExamMappingView() {
   }, [fetchExams, fetchExamMappings]);
 
   const selectedExam = exams.find((e) => e.id === selectedExamId) || null;
+  const publishedExams = exams.filter((exam) => exam.status === 'Published');
 
   const handleMap = (examId: string) => {
     setSelectedExamId(examId);
@@ -83,11 +84,11 @@ export function ExamMappingView() {
       <Card className="border-slate-200 dark:border-slate-800 shadow-sm">
         <CardContent className="p-6 space-y-4">
           <h3 className="font-semibold text-slate-900 dark:text-slate-100">Exams</h3>
-          {exams.length === 0 ? (
-            <p className="text-sm text-slate-500">No exams available yet. Create one under Exams first.</p>
+          {publishedExams.length === 0 ? (
+            <p className="text-sm text-slate-500">No published exams are available. Add all questions and publish an exam before mapping it to a class.</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-              {exams.map((exam) => (
+              {publishedExams.map((exam) => (
                 <div key={exam.id} className="p-4 rounded-lg border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-medium text-slate-900 dark:text-slate-100 truncate">{exam.title}</p>

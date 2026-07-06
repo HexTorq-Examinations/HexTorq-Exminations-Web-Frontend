@@ -6,11 +6,13 @@ import { useExamStore } from '@/store/examStore';
 import { useProctoring } from '@/hooks/useProctoring';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Camera, Mic, Monitor, Wifi, Calculator, AlertTriangle, ChevronRight, ChevronLeft, Flag } from 'lucide-react';
+import { Monitor, Wifi, Calculator, AlertTriangle, ChevronRight, ChevronLeft, Flag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '@/lib/api';
+import { toast } from 'sonner';
 import { NetworkPing } from '@/components/common/NetworkPing';
 import { FloatingCalculator } from '@/components/common/FloatingCalculator';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 
 interface ExamQuestion {
   id: string;
@@ -23,7 +25,7 @@ function SecureExamInterface() {
   const searchParams = useSearchParams();
   const currentExamId = searchParams.get('id') || '';
   const {
-    status, examId: storeExamId, startExam, endExam, timeRemaining, tickTimer, answers, saveAnswer,
+    status, examId: storeExamId, startExam, refreshAttemptStatus, endExam, timeRemaining, tickTimer, answers, saveAnswer,
     violations, clearSession, isPaused, setIsPaused, isOnline, unsyncedQuestionIds,
     unsyncedViolationIds, pendingSubmitStatus,
   } = useExamStore();
@@ -34,9 +36,12 @@ function SecureExamInterface() {
   const [lastViolationCount, setLastViolationCount] = useState(0);
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
   const [isLoadingExam, setIsLoadingExam] = useState(true);
+  const [examLoadError, setExamLoadError] = useState<string | null>(null);
+  const [examLoadAttempt, setExamLoadAttempt] = useState(0);
   
   const [markedForReview, setMarkedForReview] = useState<Set<string>>(new Set());
   const [showCalculator, setShowCalculator] = useState(false);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
 
   // Clear session if opening a different exam
   useEffect(() => {
@@ -50,15 +55,38 @@ function SecureExamInterface() {
     if (!currentExamId) return;
     let cancelled = false;
     setIsLoadingExam(true);
+    setExamLoadError(null);
     api.get(`/exams/${currentExamId}/take`)
       .then(({ data }) => {
-        if (!cancelled) setQuestions(data.questions || []);
+        if (cancelled) return;
+
+        const loadedQuestions = Array.isArray(data?.questions)
+          ? data.questions.filter((question: unknown): question is ExamQuestion => {
+              if (!question || typeof question !== 'object') return false;
+              const candidate = question as Partial<ExamQuestion>;
+              return typeof candidate.id === 'string'
+                && typeof candidate.text === 'string'
+                && Array.isArray(candidate.options);
+            })
+          : [];
+
+        setQuestions(loadedQuestions);
+        setCurrentQuestionIdx(0);
+        if (loadedQuestions.length === 0) {
+          setExamLoadError('This exam does not have any available questions. Please contact your exam administrator.');
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setQuestions([]);
+          setExamLoadError(error instanceof Error ? error.message : 'Unable to load this exam.');
+        }
       })
       .finally(() => {
         if (!cancelled) setIsLoadingExam(false);
       });
     return () => { cancelled = true; };
-  }, [currentExamId]);
+  }, [currentExamId, examLoadAttempt]);
 
   const handleStartExam = async () => {
     try {
@@ -67,17 +95,31 @@ function SecureExamInterface() {
       }
       await startExam(currentExamId);
     } catch (err) {
-      console.error(err);
-      // Let the toast show but do not start exam if fullscreen fails
+      // The server is the source of truth for the exam's time window and re-attempt
+      // rules — the api client already toasts the rejection reason (too early,
+      // already ended, already attempted); just send the student back instead of
+      // leaving them stuck on a dead "Start Exam" screen.
+      router.push('/student/upcoming-exams');
     }
   };
 
   // Timer tick
   useEffect(() => {
     if (status !== 'IN_PROGRESS') return;
+    refreshAttemptStatus().catch(() => {});
     const timer = setInterval(() => tickTimer(), 1000);
-    return () => clearInterval(timer);
-  }, [status, tickTimer]);
+    const catchUp = () => {
+      tickTimer();
+      refreshAttemptStatus().catch(() => {});
+    };
+    document.addEventListener('visibilitychange', catchUp);
+    window.addEventListener('focus', catchUp);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', catchUp);
+      window.removeEventListener('focus', catchUp);
+    };
+  }, [status, tickTimer, refreshAttemptStatus]);
 
   // Monitor violations for termination
   useEffect(() => {
@@ -119,6 +161,22 @@ function SecureExamInterface() {
     );
   }
 
+  if (examLoadError || questions.length === 0) {
+    return (
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-900 text-white p-6 text-center">
+        <AlertTriangle className="w-12 h-12 text-amber-400 mb-4" />
+        <h2 className="text-xl font-bold mb-2">Unable to open exam</h2>
+        <p className="text-slate-400 mb-6 max-w-lg">
+          {examLoadError || 'No questions are available for this exam.'}
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Button onClick={() => setExamLoadAttempt((attempt) => attempt + 1)}>Try Again</Button>
+          <Button variant="outline" onClick={() => router.push('/student/active-exams')}>Back to Active Exams</Button>
+        </div>
+      </div>
+    );
+  }
+
   if (status === 'NOT_STARTED') {
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-900 p-6 text-white select-none">
@@ -131,8 +189,7 @@ function SecureExamInterface() {
             This examination requires a secure fullscreen environment. By clicking "Start Exam", your browser will enter fullscreen mode. Exiting fullscreen or switching tabs will result in a security violation.
           </p>
           <div className="space-y-4 text-left bg-slate-900 p-4 rounded-lg mb-8 text-sm text-slate-400">
-            <p className="flex items-center gap-2"><Camera className="w-4 h-4 text-emerald-400" /> Camera active and recording</p>
-            <p className="flex items-center gap-2"><Mic className="w-4 h-4 text-emerald-400" /> Microphone active</p>
+            <p className="flex items-center gap-2"><Monitor className="w-4 h-4 text-emerald-400" /> Fullscreen mode enforced</p>
             <p className="flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-amber-400" /> Shortcuts and right-click disabled</p>
           </div>
           <Button size="lg" className="w-full bg-blue-600 hover:bg-blue-700 text-white text-lg h-14 font-bold" onClick={handleStartExam}>
@@ -177,6 +234,17 @@ function SecureExamInterface() {
     );
   }
 
+  if (!currentQuestion) {
+    return (
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-900 text-white p-6 text-center">
+        <AlertTriangle className="w-12 h-12 text-amber-400 mb-4" />
+        <h2 className="text-xl font-bold mb-2">Question unavailable</h2>
+        <p className="text-slate-400 mb-6">The selected question could not be loaded. Reload the exam to continue.</p>
+        <Button onClick={() => setExamLoadAttempt((attempt) => attempt + 1)}>Reload Exam</Button>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen w-screen bg-slate-50 flex flex-col overflow-hidden select-none">
 
@@ -187,8 +255,6 @@ function SecureExamInterface() {
           <span className="font-bold text-sm tracking-wide sm:hidden">EA</span>
           <div className="hidden md:block h-4 w-px bg-white/20"></div>
           <div className="hidden md:flex items-center gap-4 text-sm font-medium">
-            <span className="flex items-center gap-1.5"><Camera className="w-4 h-4 text-green-400" /> Camera</span>
-            <span className="flex items-center gap-1.5"><Mic className="w-4 h-4 text-green-400" /> Mic</span>
             <span className="flex items-center gap-1.5"><Monitor className="w-4 h-4 text-green-400" /> Fullscreen</span>
             <span className={`flex items-center gap-1.5 ${isOnline ? 'text-green-400' : 'text-red-400'}`}>
               {!isOnline ? (
@@ -223,7 +289,7 @@ function SecureExamInterface() {
           <div className="text-lg md:text-xl font-mono font-bold tracking-wider tabular-nums">
             {formatTime(timeRemaining)}
           </div>
-          <Button variant="destructive" size="sm" onClick={() => endExam('COMPLETED')} className="font-bold px-2 md:px-4 text-xs md:text-sm">
+          <Button variant="destructive" size="sm" onClick={() => setShowSubmitConfirm(true)} className="font-bold px-2 md:px-4 text-xs md:text-sm">
             Submit
           </Button>
         </div>
@@ -361,6 +427,19 @@ function SecureExamInterface() {
       </div>
       
       <FloatingCalculator isOpen={showCalculator} onClose={() => setShowCalculator(false)} />
+
+      <ConfirmDialog
+        open={showSubmitConfirm}
+        onOpenChange={setShowSubmitConfirm}
+        title="Submit Exam"
+        description={
+          questions.length - Object.keys(answers).length > 0
+            ? `You have ${questions.length - Object.keys(answers).length} unanswered question${questions.length - Object.keys(answers).length > 1 ? 's' : ''}. Once submitted, you cannot make any further changes. Are you sure you want to submit?`
+            : 'Once submitted, you cannot make any further changes. Are you sure you want to submit?'
+        }
+        onConfirm={() => { setShowSubmitConfirm(false); endExam('COMPLETED'); }}
+        destructive={false}
+      />
 
       {/* Security Warning Overlay (Blocks UI when isPaused is true) */}
       <AnimatePresence>

@@ -10,10 +10,19 @@ import { useEffect, useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useExamStore } from '@/store/examStore';
 import { api } from '@/lib/api';
+import { getTemporalStatus, hasCompletedMapping } from '@/lib/examMappingStatus';
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval,
   isSameDay, isSameMonth, addMonths, subMonths, format, differenceInCalendarDays,
 } from 'date-fns';
+
+const formatCountdown = (ms: number) => {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+};
 
 interface NotificationItem {
   id: string;
@@ -30,6 +39,7 @@ export default function StudentUpcomingExams() {
   const { myMappings, examHistory, fetchMyMappings, fetchExamHistory } = useExamStore();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
+  const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
     fetchMyMappings();
@@ -37,28 +47,38 @@ export default function StudentUpcomingExams() {
     api.get('/messages/notifications').then(({ data }) => setNotifications(data)).catch(() => {});
   }, [fetchMyMappings, fetchExamHistory]);
 
+  // Live countdown to each exam's start — ticks every second.
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   const upcomingExams = myMappings
-    .filter(m => m.status !== 'Completed' && m.status !== 'Cancelled' && !(examHistory || []).some(h => h.examId === m.examId))
-    .map(m => ({
-      id: m.examId,
-      mappingId: m.id,
-      title: m.examTitle || 'Exam',
-      subject: m.examSubject || '',
-      code: `EXM-${(m.examId || '').toUpperCase()}`,
-      dateObj: new Date(m.date),
-      date: new Date(m.date).toLocaleDateString(),
-      time: m.startTime,
-      duration: m.examDuration ? `${m.examDuration} mins` : `${m.startTime} - ${m.endTime}`,
-      marks: m.examTotalMarks || 0,
-      questions: m.examQuestionCount || 0,
-      assignedBy: 'System Admin',
-      status: m.status,
-    }))
+    .filter(m => getTemporalStatus(m, now) === 'upcoming' && !hasCompletedMapping(m, examHistory))
+    .map(m => {
+      const startDateTime = new Date(`${m.date}T${m.startTime}:00`);
+      return {
+        id: m.examId,
+        mappingId: m.id,
+        title: m.examTitle || 'Exam',
+        subject: m.examSubject || '',
+        code: `EXM-${(m.examId || '').toUpperCase()}`,
+        dateObj: new Date(m.date),
+        startDateTime,
+        date: new Date(m.date).toLocaleDateString(),
+        time: m.startTime,
+        duration: m.examDuration ? `${m.examDuration} mins` : `${m.startTime} - ${m.endTime}`,
+        marks: m.examTotalMarks || 0,
+        questions: m.examQuestionCount || 0,
+        assignedBy: 'System Admin',
+        status: m.status,
+      };
+    })
     .sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
 
   const nextExam = upcomingExams[0];
   const unreadCount = notifications.filter((n) => n.unread).length;
-  const daysRemaining = nextExam ? Math.max(0, differenceInCalendarDays(nextExam.dateObj, new Date())) : 0;
+  const daysRemaining = nextExam ? Math.max(0, differenceInCalendarDays(nextExam.dateObj, now)) : 0;
 
   const metrics = [
     { title: 'Total Upcoming Exams', value: upcomingExams.length.toString(), icon: FileText, color: 'text-blue-600', bg: 'bg-blue-100' },
@@ -156,10 +176,9 @@ export default function StudentUpcomingExams() {
                       <p className="font-medium mt-1">{exam.duration}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-slate-500 uppercase font-semibold tracking-wider">Status</p>
-                      <p className="font-medium mt-1 text-emerald-600 flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
-                        {exam.status}
+                      <p className="text-xs text-slate-500 uppercase font-semibold tracking-wider">Starts In</p>
+                      <p className="font-mono font-bold mt-1 text-blue-600 tabular-nums">
+                        {formatCountdown(exam.startDateTime.getTime() - now.getTime())}
                       </p>
                     </div>
                   </div>
@@ -268,7 +287,6 @@ export default function StudentUpcomingExams() {
               </div>
               <ul className="list-disc list-inside space-y-2">
                 <li>Ensure you are in a quiet, well-lit environment.</li>
-                <li>Camera and microphone must remain active throughout the exam.</li>
                 <li>Tab switching, window minimizing, or fullscreen exit will be recorded as violations.</li>
                 <li>Maximum 5 violations are allowed before the exam is auto-submitted.</li>
                 <li>Do not use any unauthorized materials or devices.</li>

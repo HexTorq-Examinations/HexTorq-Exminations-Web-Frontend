@@ -69,7 +69,7 @@ export const ExamSchema = z.object({
   duration: z.coerce.number().min(10, 'Minimum 10 minutes required'),
   totalMarks: z.coerce.number().min(10, 'Total marks required'),
   passingMarks: z.coerce.number().min(1, 'Passing marks required'),
-  status: z.enum(['Draft', 'Active', 'Completed']).default('Draft'),
+  status: z.enum(['Draft', 'Published', 'Completed']).default('Draft'),
   shuffleQuestions: z.boolean().default(false),
   shuffleOptions: z.boolean().default(false),
   negativeMarking: z.boolean().default(false),

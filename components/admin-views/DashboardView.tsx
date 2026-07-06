@@ -94,7 +94,7 @@ export function DashboardView({ role }: DashboardViewProps) {
     ...(isSuperAdmin ? [{ title: 'Total Admins', value: (stats?.totalAdmins ?? admins.length).toString(), icon: Users, color: 'text-purple-600', bg: 'bg-purple-100' }] : []),
     { title: 'Total Students', value: (stats?.totalStudents ?? 0).toLocaleString(), icon: GraduationCap, color: 'text-blue-600', bg: 'bg-blue-100' },
     { title: 'Total Exams', value: (stats?.totalExams ?? 0).toLocaleString(), icon: ClipboardCheck, color: 'text-emerald-600', bg: 'bg-emerald-100' },
-    { title: 'Active Exams', value: (stats?.activeExams ?? 0).toString(), icon: Activity, color: 'text-pink-600', bg: 'bg-pink-100' },
+    { title: 'Published Exams', value: (stats?.activeExams ?? 0).toString(), icon: Activity, color: 'text-pink-600', bg: 'bg-pink-100' },
     { title: 'Published Results', value: (stats?.publishedResults ?? 0).toLocaleString(), icon: BarChart2, color: 'text-teal-600', bg: 'bg-teal-100' },
     { title: 'Batches', value: (overview?.totalBatches ?? 0).toString(), icon: Layers, color: 'text-indigo-600', bg: 'bg-indigo-100' },
     { title: 'Schools', value: (overview?.totalSchools ?? 0).toString(), icon: School, color: 'text-cyan-600', bg: 'bg-cyan-100' },

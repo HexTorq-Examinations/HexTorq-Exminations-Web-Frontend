@@ -72,7 +72,7 @@ export function ExamsView({ role }: ExamsViewProps) {
 
   const stats = [
     { title: 'Total Exams', value: exams.length, icon: ClipboardCheck, color: 'text-blue-600', bg: 'bg-blue-100' },
-    { title: 'Active', value: exams.filter(e => e.status === 'Active').length, icon: PlayCircle, color: 'text-emerald-600', bg: 'bg-emerald-100' },
+    { title: 'Published', value: exams.filter(e => e.status === 'Published').length, icon: PlayCircle, color: 'text-emerald-600', bg: 'bg-emerald-100' },
     { title: 'Completed', value: exams.filter(e => e.status === 'Completed').length, icon: CalendarClock, color: 'text-amber-600', bg: 'bg-amber-100' },
     { title: 'Drafts', value: exams.filter(e => e.status === 'Draft').length, icon: Edit3, color: 'text-slate-600', bg: 'bg-slate-100' },
   ];
@@ -106,7 +106,11 @@ export function ExamsView({ role }: ExamsViewProps) {
 
   const handlePublish = async (exam: Exam) => {
     if (exam.id) {
-      await updateExam(exam.id, { status: 'Active' });
+      if (!exam.questionCount) {
+        toast.error('Add questions before publishing this exam');
+        return;
+      }
+      await updateExam(exam.id, { status: 'Published' });
       toast.success(`Exam ${exam.title} published`);
     }
   };
@@ -182,7 +186,7 @@ export function ExamsView({ role }: ExamsViewProps) {
                       <Badge
                         variant="secondary"
                         className={`
-                          ${exam.status === 'Active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : ''}
+                          ${exam.status === 'Published' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : ''}
                           ${exam.status === 'Completed' ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' : ''}
                           ${exam.status === 'Draft' ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' : ''}
                           font-medium border-0

@@ -28,6 +28,9 @@ const gradeColor: Record<string, string> = {
   'C': 'bg-amber-100 text-amber-700 border-amber-200',
   'F': 'bg-red-100 text-red-700 border-red-200',
 };
+const GRADE_ORDER = ['A+', 'A', 'B+', 'B', 'C', 'F'];
+
+const gradeFromPct = (pct: number) => (pct > 90 ? 'A+' : pct > 80 ? 'A' : pct > 70 ? 'B+' : pct > 60 ? 'B' : 'C');
 
 export default function StudentResults() {
   const { examHistory, fetchExamHistory } = useExamStore();
@@ -38,28 +41,35 @@ export default function StudentResults() {
     fetchExamHistory();
   }, [fetchExams, fetchExamHistory]);
 
+  // Scores/grades are only computed for exams the Admin has actually published a
+  // Result for (h.resultStatus, from the server) — score is null otherwise, and we
+  // never guess or reveal a percentage from it.
   const results = (examHistory || []).map((h, i) => {
     const examInfo = exams.find(e => e.id === h.examId);
-    const scorePct = examInfo?.totalMarks ? (h.score / examInfo.totalMarks) * 100 : 0;
-    const grade = scorePct > 90 ? 'A+' : scorePct > 80 ? 'A' : scorePct > 70 ? 'B+' : scorePct > 60 ? 'B' : 'C';
+    const isPublished = h.resultStatus === 'Published' && h.score !== null;
+    const scorePct = isPublished && examInfo?.totalMarks ? (h.score! / examInfo.totalMarks) * 100 : null;
 
     return {
       id: i,
       exam: examInfo?.title || 'Unknown Exam',
       subject: examInfo?.subject || 'Unknown',
       date: new Date(h.date).toLocaleDateString(),
-      score: h.score,
-      total: examInfo?.totalMarks || 100,
-      grade,
-      status: h.status === 'TERMINATED' ? 'Pending Evaluation' : 'Published'
+      score: isPublished ? h.score! : null,
+      total: examInfo?.totalMarks || 0,
+      grade: scorePct !== null ? gradeFromPct(scorePct) : null,
+      status: isPublished ? 'Published' as const : 'Pending Evaluation' as const,
     };
   });
 
   const published = results.filter(r => r.status === 'Published');
-  const totalObtained = published.reduce((s, r) => s + r.score, 0);
+  const totalObtained = published.reduce((s, r) => s + (r.score || 0), 0);
   const totalPossible = published.reduce((s, r) => s + r.total, 0);
   const overallPct = totalPossible > 0 ? Math.round((totalObtained / totalPossible) * 100) : 0;
-  const bestGrade = 'A+';
+  const bestGrade = published.reduce<string | null>((best, r) => {
+    if (!r.grade) return best;
+    if (!best) return r.grade;
+    return GRADE_ORDER.indexOf(r.grade) < GRADE_ORDER.indexOf(best) ? r.grade : best;
+  }, null) || '—';
 
   const metrics = [
     { title: 'Exams Completed', value: results.length.toString(), icon: FileText, color: 'text-blue-600', bg: 'bg-blue-100' },
@@ -126,15 +136,17 @@ export default function StudentResults() {
                       <TableCell className="text-slate-600 dark:text-slate-400">{r.subject}</TableCell>
                       <TableCell className="text-slate-500 text-sm">{r.date}</TableCell>
                       <TableCell>
-                        <div className="space-y-1 min-w-[80px]">
-                          <span className="font-semibold text-slate-900 dark:text-slate-100">{r.score}/{r.total}</span>
-                          {r.status === 'Published' && (
-                            <Progress value={(r.score / r.total) * 100} className="h-1.5" />
-                          )}
-                        </div>
+                        {r.status === 'Published' ? (
+                          <div className="space-y-1 min-w-[80px]">
+                            <span className="font-semibold text-slate-900 dark:text-slate-100">{r.score}/{r.total}</span>
+                            <Progress value={(r.score! / r.total) * 100} className="h-1.5" />
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400">Awaiting publication</span>
+                        )}
                       </TableCell>
                       <TableCell>
-                        {r.status === 'Published' ? (
+                        {r.status === 'Published' && r.grade ? (
                           <Badge variant="outline" className={gradeColor[r.grade] || ''}>{r.grade}</Badge>
                         ) : (
                           <span className="text-xs text-slate-400">—</span>
@@ -175,7 +187,7 @@ export default function StudentResults() {
             <CardContent className="p-6 space-y-4">
               <div className="text-center">
                 <div className="text-5xl font-bold text-slate-900 dark:text-slate-100">{overallPct}%</div>
-                <p className="text-slate-500 mt-1 text-sm">Cumulative Score</p>
+                <p className="text-slate-500 mt-1 text-sm">Cumulative Score (Published Only)</p>
               </div>
               <Progress value={overallPct} className="h-3 mt-2" />
               <div className="grid grid-cols-2 gap-4 pt-2">
@@ -197,15 +209,19 @@ export default function StudentResults() {
               <CardTitle className="text-base font-bold">Subject Breakdown</CardTitle>
             </CardHeader>
             <CardContent className="p-4 space-y-4">
-              {published.map((r) => (
-                <div key={r.id}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="font-medium text-slate-700 dark:text-slate-300 truncate">{r.subject}</span>
-                    <span className="font-semibold text-slate-900 dark:text-slate-100">{Math.round((r.score / r.total) * 100)}%</span>
+              {published.length === 0 ? (
+                <p className="text-sm text-slate-400">No published results yet.</p>
+              ) : (
+                published.map((r) => (
+                  <div key={r.id}>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="font-medium text-slate-700 dark:text-slate-300 truncate">{r.subject}</span>
+                      <span className="font-semibold text-slate-900 dark:text-slate-100">{Math.round((r.score! / r.total) * 100)}%</span>
+                    </div>
+                    <Progress value={(r.score! / r.total) * 100} className="h-2" />
                   </div>
-                  <Progress value={(r.score / r.total) * 100} className="h-2" />
-                </div>
-              ))}
+                ))
+              )}
             </CardContent>
           </Card>
         </div>

@@ -15,7 +15,13 @@ export const useProctoring = () => {
     }
   }, [recordViolation, setIsPaused]);
 
+  // A tab switch/minimize fires both `visibilitychange` (hidden) and `blur` for the
+  // same action — recording both would double-count one violation as two. Only treat
+  // blur as its own violation when the tab is still visible (e.g. focus moved to
+  // another application window without switching tabs), since visibilitychange
+  // already covers the hidden case.
   const handleBlur = useCallback(() => {
+    if (document.visibilityState === 'hidden') return;
     recordViolation('BLUR', 'Exam window lost focus.');
     setIsPaused(true);
     toast.warning('Warning: Exam window lost focus.', { duration: 5000 });

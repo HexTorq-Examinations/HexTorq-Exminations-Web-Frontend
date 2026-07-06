@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { useAuthStore } from '@/store/authStore';
 import { useExamStore } from '@/store/examStore';
 import { useMessagingStore } from '@/store/messagingStore';
+import { getTemporalStatus, hasCompletedMapping } from '@/lib/examMappingStatus';
 
 export default function StudentDashboard() {
   const { user } = useAuthStore();
@@ -22,11 +23,13 @@ export default function StudentDashboard() {
     fetchUnreadTotal();
   }, [fetchMyMappings, fetchExamHistory, fetchConversations, fetchUnreadTotal]);
 
-  const upcomingMappings = myMappings.filter(m => new Date(`${m.date}T${m.startTime}`) > new Date() && !(examHistory || []).some(h => h.examId === m.examId));
-  // Sort upcoming by nearest date first
+  const now = new Date();
+  const liveMappings = myMappings.filter((m) => !hasCompletedMapping(m, examHistory));
+
+  const upcomingMappings = liveMappings.filter((m) => getTemporalStatus(m, now) === 'upcoming');
   upcomingMappings.sort((a, b) => new Date(`${a.date}T${a.startTime}`).getTime() - new Date(`${b.date}T${b.startTime}`).getTime());
 
-  const activeMappings = myMappings.filter(m => m.status === 'In Progress' && !(examHistory || []).some(h => h.examId === m.examId));
+  const activeMappings = liveMappings.filter((m) => getTemporalStatus(m, now) === 'active');
   const completedCount = (examHistory || []).length;
   const upcomingCount = upcomingMappings.length;
   const activeCount = activeMappings.length;
@@ -224,8 +227,8 @@ export default function StudentDashboard() {
               </div>
               <div className="h-px bg-slate-100 dark:bg-slate-800"></div>
               <div>
-                <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Updated ID Policy</h4>
-                <p className="text-xs text-slate-500 mt-1">Please ensure your college ID is clearly visible to the webcam during the verification process.</p>
+                <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Stay in Fullscreen</h4>
+                <p className="text-xs text-slate-500 mt-1">Exiting fullscreen or switching tabs during the exam counts as a violation — up to 5 are allowed before auto-submission.</p>
               </div>
             </CardContent>
           </Card>

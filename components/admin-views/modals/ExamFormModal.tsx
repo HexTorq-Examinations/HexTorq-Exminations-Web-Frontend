@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 
 interface ExamFormModalProps {
@@ -75,23 +74,6 @@ export function ExamFormModal({ open, onOpenChange, examToEdit }: ExamFormModalP
               <Label htmlFor="subject">Subject *</Label>
               <Input id="subject" {...register('subject')} placeholder="e.g., Computer Science" />
               {errors.subject && <p className="text-red-500 text-xs">{errors.subject.message}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select 
-                defaultValue={examToEdit?.status || 'Draft'} 
-                onValueChange={(val) => setValue('status', val as any)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Draft">Draft</SelectItem>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
 
             <div className="space-y-2 col-span-1 md:col-span-2">

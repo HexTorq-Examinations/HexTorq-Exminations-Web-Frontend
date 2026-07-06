@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,31 +9,60 @@ import Link from 'next/link';
 import { Progress } from '@/components/ui/progress';
 import { useRouter } from 'next/navigation';
 import { useExamStore } from '@/store/examStore';
+import { api } from '@/lib/api';
+import { getTemporalStatus, hasCompletedMapping } from '@/lib/examMappingStatus';
+
+interface AttemptStatus {
+  hasActiveAttempt: boolean;
+  answeredCount: number;
+  totalQuestions: number;
+}
 
 export default function StudentActiveExams() {
   const router = useRouter();
   const { status, examId, examHistory, myMappings, fetchExamHistory, fetchMyMappings } = useExamStore();
+  const [attemptStatus, setAttemptStatus] = useState<Record<string, AttemptStatus>>({});
 
   useEffect(() => {
     fetchMyMappings();
     fetchExamHistory();
   }, [fetchMyMappings, fetchExamHistory]);
 
-  const isToday = (dateStr: string) => new Date(dateStr).toDateString() === new Date().toDateString();
+  const now = new Date();
+  const activeMappings = myMappings.filter(
+    (m) => getTemporalStatus(m, now) === 'active' && !hasCompletedMapping(m, examHistory)
+  );
 
-  const allActiveExams = myMappings
-    .filter(m => isToday(m.date) && m.status !== 'Completed' && m.status !== 'Cancelled' && !(examHistory || []).some(h => h.examId === m.examId))
-    .map(m => ({
+  // Read-only progress snapshot per active exam — does not create an attempt.
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all(
+      activeMappings.map((m) =>
+        api.get(`/exams/${m.examId}/my-attempt`).then(({ data }) => [m.examId, data] as const)
+      )
+    ).then((entries) => {
+      if (cancelled) return;
+      setAttemptStatus(Object.fromEntries(entries));
+    });
+    return () => { cancelled = true; };
+  }, [myMappings.length, examHistory.length]);
+
+  const allActiveExams = activeMappings.map((m) => {
+    const progress = attemptStatus[m.examId];
+    const totalQuestions = progress?.totalQuestions ?? m.examQuestionCount ?? 0;
+    const answered = progress?.answeredCount ?? 0;
+    return {
       id: m.examId,
       title: m.examTitle || 'Exam',
-      subject: '',
+      subject: m.examSubject || '',
       startedTime: m.startTime,
       remainingTime: `Until ${m.endTime}`,
-      questionsAnswered: 0,
-      questionsRemaining: 0,
-      totalQuestions: 0,
-      progress: 0,
-    }));
+      questionsAnswered: answered,
+      questionsRemaining: Math.max(0, totalQuestions - answered),
+      totalQuestions,
+      progress: totalQuestions > 0 ? Math.round((answered / totalQuestions) * 100) : 0,
+    };
+  });
 
   // Filter out the exam if it's currently marked as completed or terminated in the store
   const activeExams = allActiveExams.filter(
@@ -44,15 +73,15 @@ export default function StudentActiveExams() {
 
   return (
     <div className="space-y-6 pb-10">
-      <PageHeader 
-        title="Active Exams" 
+      <PageHeader
+        title="Active Exams"
         description="Continue your ongoing examination."
         breadcrumbs={[{ label: 'Student', href: '/student/dashboard' }, { label: 'Active Exams' }]}
         showSearch={false}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
+
         {/* Main Content (70%) */}
         <div className="lg:col-span-8 space-y-6">
           {!hasActive ? (
@@ -107,15 +136,15 @@ export default function StudentActiveExams() {
                 <Card key={exam.id} className="border-blue-200 dark:border-blue-900 shadow-md overflow-hidden relative">
                   {/* Progress bar at the very top edge */}
                   <Progress value={exam.progress} className="h-1.5 w-full rounded-none bg-blue-100 dark:bg-blue-950" />
-                  
+
                   <div className="p-6 md:p-8">
                     <div className="flex flex-col md:flex-row justify-between md:items-start gap-6">
                       <div className="space-y-4 flex-1">
                         <div>
-                          <p className="text-sm font-semibold text-blue-600 dark:text-blue-400 mb-1">{exam.subject}</p>
+                          {exam.subject && <p className="text-sm font-semibold text-blue-600 dark:text-blue-400 mb-1">{exam.subject}</p>}
                           <h3 className="text-3xl font-bold text-slate-900 dark:text-slate-100">{exam.title}</h3>
                         </div>
-                        
+
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
                           <div>
                             <p className="text-xs text-slate-500 mb-1">Started At</p>
@@ -141,7 +170,7 @@ export default function StudentActiveExams() {
                           className="w-full h-12 text-md font-bold bg-blue-600 hover:bg-blue-700 shadow-blue-500/25 shadow-lg"
                           onClick={() => router.push(`/exam?id=${exam.id}`)}
                         >
-                          <PlayCircle className="mr-2 h-5 w-5" /> Resume Exam
+                          <PlayCircle className="mr-2 h-5 w-5" /> {attemptStatus[exam.id]?.hasActiveAttempt ? 'Resume Exam' : 'Start Exam'}
                         </Button>
                         <Button variant="outline" className="w-full h-12 text-slate-700 dark:text-slate-300">
                           <FileText className="mr-2 h-4 w-4" /> View Instructions
@@ -167,7 +196,7 @@ export default function StudentActiveExams() {
                 <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></div>
                 <div>
                   <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Proctoring Active</p>
-                  <p className="text-xs text-slate-500">Camera and microphone are being monitored.</p>
+                  <p className="text-xs text-slate-500">Tab switches and fullscreen exits are being monitored.</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">

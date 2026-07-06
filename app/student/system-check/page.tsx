@@ -4,17 +4,15 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, XCircle, Monitor, Camera, Mic, Wifi, ShieldAlert } from 'lucide-react';
+import { CheckCircle2, XCircle, Monitor, Wifi, ShieldAlert } from 'lucide-react';
 
 export default function SystemCheckPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const examId = searchParams.get('examId') || 'ex_1';
-  
+
   const [checks, setChecks] = useState({
     fullscreen: false,
-    camera: false,
-    microphone: false,
     internet: true, // Assuming true if page loaded, could do ping test
     declaration: false,
   });
@@ -30,19 +28,6 @@ export default function SystemCheckPage() {
     }
   };
 
-  const requestMedia = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      if (stream) {
-        setChecks(prev => ({ ...prev, camera: true, microphone: true }));
-        // Stop stream after check
-        stream.getTracks().forEach(track => track.stop());
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   // Listen for fullscreen exit during check
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -52,7 +37,7 @@ export default function SystemCheckPage() {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  const allChecksPassed = checks.fullscreen && checks.camera && checks.microphone && checks.internet && checks.declaration;
+  const allChecksPassed = checks.fullscreen && checks.internet && checks.declaration;
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
@@ -67,7 +52,7 @@ export default function SystemCheckPage() {
 
         <CardContent className="space-y-6 pt-6">
           <div className="grid gap-4">
-            
+
             {/* Fullscreen Check */}
             <div className="flex items-center justify-between p-4 rounded-lg border bg-white shadow-sm">
               <div className="flex items-center gap-3">
@@ -81,25 +66,6 @@ export default function SystemCheckPage() {
                 <CheckCircle2 className="w-6 h-6 text-green-500" />
               ) : (
                 <Button variant="outline" size="sm" onClick={requestFullscreen}>Enable</Button>
-              )}
-            </div>
-
-            {/* Media Check */}
-            <div className="flex items-center justify-between p-4 rounded-lg border bg-white shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="flex -space-x-2">
-                  <Camera className="w-5 h-5 text-slate-500" />
-                  <Mic className="w-5 h-5 text-slate-500 relative left-3" />
-                </div>
-                <div className="pl-4">
-                  <h4 className="font-semibold text-slate-900">Camera & Microphone</h4>
-                  <p className="text-sm text-slate-500">Required for proctoring</p>
-                </div>
-              </div>
-              {checks.camera && checks.microphone ? (
-                <CheckCircle2 className="w-6 h-6 text-green-500" />
-              ) : (
-                <Button variant="outline" size="sm" onClick={requestMedia}>Allow Access</Button>
               )}
             </div>
 
@@ -121,15 +87,15 @@ export default function SystemCheckPage() {
 
             {/* Declaration */}
             <div className="flex items-start gap-3 p-4 rounded-lg border bg-blue-50/50 border-blue-100 mt-2">
-              <input 
-                type="checkbox" 
-                id="declaration" 
+              <input
+                type="checkbox"
+                id="declaration"
                 className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
                 checked={checks.declaration}
                 onChange={(e) => setChecks(prev => ({ ...prev, declaration: e.target.checked }))}
               />
               <label htmlFor="declaration" className="text-sm text-slate-700 leading-snug cursor-pointer">
-                I hereby declare that I will not use any unfair means during the examination. I understand that my activities are being monitored and recorded, and any violation will result in immediate termination of the exam.
+                I hereby declare that I will not use any unfair means during the examination. I understand that my activities are being monitored, and any violation will result in immediate termination of the exam.
               </label>
             </div>
 
@@ -138,8 +104,8 @@ export default function SystemCheckPage() {
 
         <CardFooter className="pt-2 pb-6 border-t mt-6 bg-slate-50/50 rounded-b-xl flex justify-end gap-3">
           <Button variant="ghost" onClick={() => router.push('/student/dashboard')}>Cancel</Button>
-          <Button 
-            className="bg-blue-600 hover:bg-blue-700 text-white min-w-[140px]" 
+          <Button
+            className="bg-blue-600 hover:bg-blue-700 text-white min-w-[140px]"
             disabled={!allChecksPassed}
             onClick={() => router.push(`/exam?id=${examId}`)}
           >
