@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { api } from '@/lib/api';
 import { ExamMapping } from '@/types/admin';
+import { acknowledge, enqueueUnique, serverRemainingSeconds } from '@/lib/examSync';
 
 export type ExamStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'TERMINATED';
 
@@ -15,12 +16,28 @@ export interface Violation {
 
 export interface ExamHistoryEntry {
   examId: string;
+  examTitle?: string;
+  examSubject?: string;
+  totalMarks?: number;
   status: 'COMPLETED' | 'TERMINATED';
   // Score is only ever non-null once the Admin has published the Result for this exam;
   // resultStatus tells the UI which case it is so it never guesses.
   resultStatus: 'Published' | 'Pending Evaluation';
   score: number | null;
   date: number;
+}
+
+export interface AttemptQuestion {
+  id: string;
+  text: string;
+  options: string[];
+  marks: number;
+}
+export interface SubmissionReceipt {
+  attemptId: string;
+  status: 'COMPLETED' | 'TERMINATED';
+  submittedAt: string;
+  serverConfirmedAt: string;
 }
 
 const genId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
@@ -46,11 +63,12 @@ interface ExamState {
   unsyncedQuestionIds: string[];
   unsyncedViolationIds: string[];
   pendingSubmitStatus: ExamStatus | null;
+  submissionReceipt: SubmissionReceipt | null;
   isOnline: boolean;
   isSyncing: boolean;
 
   // Actions
-  startExam: (examId: string) => Promise<number>;
+  startExam: (examId: string) => Promise<{ durationSeconds: number; questions: AttemptQuestion[] }>;
   refreshAttemptStatus: () => Promise<void>;
   endExam: (status?: ExamStatus) => void;
   setIsPaused: (paused: boolean) => void;
@@ -84,6 +102,7 @@ export const useExamStore = create<ExamState>()(
       unsyncedQuestionIds: [],
       unsyncedViolationIds: [],
       pendingSubmitStatus: null,
+      submissionReceipt: null,
       isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
       isSyncing: false,
 
@@ -97,15 +116,19 @@ export const useExamStore = create<ExamState>()(
           startTime: new Date(data.startedAt).getTime(),
           expiresAt,
           serverTimeOffsetMs,
-          timeRemaining: Math.max(0, Math.ceil((expiresAt - (Date.now() + serverTimeOffsetMs)) / 1000)),
+          timeRemaining: serverRemainingSeconds(expiresAt, serverTimeOffsetMs),
           violations: (data.violations || []).map((v: any) => ({ ...v, clientViolationId: v.clientViolationId || v.id })),
           answers: data.answers || {},
           isPaused: false,
           unsyncedQuestionIds: [],
           unsyncedViolationIds: [],
           pendingSubmitStatus: null,
+          submissionReceipt: null,
         });
-        return data.durationSeconds;
+        return {
+          durationSeconds: data.durationSeconds,
+          questions: Array.isArray(data.questions) ? data.questions : [],
+        };
       },
 
       refreshAttemptStatus: async () => {
@@ -114,13 +137,14 @@ export const useExamStore = create<ExamState>()(
         const { data } = await api.get(`/exams/${examId}/my-attempt`);
         const serverTimeOffsetMs = new Date(data.serverNow).getTime() - Date.now();
 
-        if (!data.hasActiveAttempt && data.status === 'COMPLETED') {
+        if (!data.hasActiveAttempt && (data.status === 'COMPLETED' || data.status === 'TERMINATED')) {
           set({
             status: 'COMPLETED',
             timeRemaining: 0,
             endTime: Date.now() + serverTimeOffsetMs,
             pendingSubmitStatus: null,
             serverTimeOffsetMs,
+            submissionReceipt: data.attemptId ? { attemptId: data.attemptId, status: data.status, submittedAt: data.submittedAt, serverConfirmedAt: data.serverConfirmedAt } : null,
           });
           return;
         }
@@ -130,7 +154,7 @@ export const useExamStore = create<ExamState>()(
           set({
             expiresAt,
             serverTimeOffsetMs,
-            timeRemaining: Math.max(0, Math.ceil((expiresAt - (Date.now() + serverTimeOffsetMs)) / 1000)),
+            timeRemaining: serverRemainingSeconds(expiresAt, serverTimeOffsetMs),
           });
         }
       },
@@ -157,7 +181,7 @@ export const useExamStore = create<ExamState>()(
         const { status, expiresAt, serverTimeOffsetMs } = get();
         if (status !== 'IN_PROGRESS' || !expiresAt) return;
 
-        const remaining = Math.max(0, Math.ceil((expiresAt - (Date.now() + serverTimeOffsetMs)) / 1000));
+        const remaining = serverRemainingSeconds(expiresAt, serverTimeOffsetMs);
         set({ timeRemaining: remaining });
         if (remaining === 0) get().endExam('COMPLETED');
       },
@@ -180,7 +204,7 @@ export const useExamStore = create<ExamState>()(
 
         set((state) => ({
           violations: updatedViolations,
-          unsyncedViolationIds: [...state.unsyncedViolationIds, violation.clientViolationId],
+          unsyncedViolationIds: enqueueUnique(state.unsyncedViolationIds, violation.clientViolationId),
           ...(shouldTerminate ? { status: 'TERMINATED', endTime: Date.now(), pendingSubmitStatus: 'TERMINATED' } : {}),
         }));
 
@@ -192,9 +216,7 @@ export const useExamStore = create<ExamState>()(
       saveAnswer: (questionId: string, answer: string) => {
         set((state) => ({
           answers: { ...state.answers, [questionId]: answer },
-          unsyncedQuestionIds: state.unsyncedQuestionIds.includes(questionId)
-            ? state.unsyncedQuestionIds
-            : [...state.unsyncedQuestionIds, questionId],
+          unsyncedQuestionIds: enqueueUnique(state.unsyncedQuestionIds, questionId),
         }));
         get().flushPending();
       },
@@ -225,7 +247,7 @@ export const useExamStore = create<ExamState>()(
             try {
               await api.post(`/exams/${examId}/answer`, { questionId, answer });
               set((state) => ({
-                unsyncedQuestionIds: state.unsyncedQuestionIds.filter((q) => q !== questionId),
+                unsyncedQuestionIds: acknowledge(state.unsyncedQuestionIds, questionId),
               }));
               set({ isOnline: true });
             } catch {
@@ -245,7 +267,7 @@ export const useExamStore = create<ExamState>()(
                 clientViolationId,
               });
               set((state) => ({
-                unsyncedViolationIds: state.unsyncedViolationIds.filter((id) => id !== clientViolationId),
+                unsyncedViolationIds: acknowledge(state.unsyncedViolationIds, clientViolationId),
                 ...(data.status === 'TERMINATED' ? { status: 'TERMINATED' as ExamStatus } : {}),
               }));
               set({ isOnline: true });
@@ -259,8 +281,8 @@ export const useExamStore = create<ExamState>()(
           const { pendingSubmitStatus, unsyncedQuestionIds, unsyncedViolationIds } = get();
           if (pendingSubmitStatus && unsyncedQuestionIds.length === 0 && unsyncedViolationIds.length === 0) {
             try {
-              await api.post(`/exams/${examId}/submit`, { status: pendingSubmitStatus });
-              set({ pendingSubmitStatus: null, isOnline: true });
+              const { data } = await api.post(`/exams/${examId}/submit`, { status: pendingSubmitStatus });
+              set({ pendingSubmitStatus: null, isOnline: true, submissionReceipt: { attemptId: data.attemptId, status: data.status, submittedAt: data.submittedAt, serverConfirmedAt: data.serverConfirmedAt } });
               await get().fetchExamHistory();
             } catch {
               set({ isOnline: false });
@@ -296,6 +318,7 @@ export const useExamStore = create<ExamState>()(
           unsyncedQuestionIds: [],
           unsyncedViolationIds: [],
           pendingSubmitStatus: null,
+          submissionReceipt: null,
         });
       }
     }),
@@ -315,6 +338,7 @@ export const useExamStore = create<ExamState>()(
         unsyncedQuestionIds: state.unsyncedQuestionIds,
         unsyncedViolationIds: state.unsyncedViolationIds,
         pendingSubmitStatus: state.pendingSubmitStatus,
+        submissionReceipt: state.submissionReceipt,
       }),
     }
   )

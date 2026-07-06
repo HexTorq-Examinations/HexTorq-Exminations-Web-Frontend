@@ -14,11 +14,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { toast } from 'sonner';
 import { useEffect } from 'react';
+import { api } from '@/lib/api';
 
 import { useExamStore } from '@/store/examStore';
-import { useAdminStore } from '@/store/adminStore';
 
 const gradeColor: Record<string, string> = {
   'A+': 'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -34,28 +33,26 @@ const gradeFromPct = (pct: number) => (pct > 90 ? 'A+' : pct > 80 ? 'A' : pct > 
 
 export default function StudentResults() {
   const { examHistory, fetchExamHistory } = useExamStore();
-  const { exams, fetchExams } = useAdminStore();
 
   useEffect(() => {
-    fetchExams();
     fetchExamHistory();
-  }, [fetchExams, fetchExamHistory]);
+  }, [fetchExamHistory]);
 
   // Scores/grades are only computed for exams the Admin has actually published a
   // Result for (h.resultStatus, from the server) — score is null otherwise, and we
   // never guess or reveal a percentage from it.
   const results = (examHistory || []).map((h, i) => {
-    const examInfo = exams.find(e => e.id === h.examId);
     const isPublished = h.resultStatus === 'Published' && h.score !== null;
-    const scorePct = isPublished && examInfo?.totalMarks ? (h.score! / examInfo.totalMarks) * 100 : null;
+    const scorePct = isPublished && h.totalMarks ? (h.score! / h.totalMarks) * 100 : null;
 
     return {
       id: i,
-      exam: examInfo?.title || 'Unknown Exam',
-      subject: examInfo?.subject || 'Unknown',
+      examId: h.examId,
+      exam: h.examTitle || 'Unknown Exam',
+      subject: h.examSubject || 'Unknown',
       date: new Date(h.date).toLocaleDateString(),
       score: isPublished ? h.score! : null,
-      total: examInfo?.totalMarks || 0,
+      total: h.totalMarks || 0,
       grade: scorePct !== null ? gradeFromPct(scorePct) : null,
       status: isPublished ? 'Published' as const : 'Pending Evaluation' as const,
     };
@@ -78,8 +75,12 @@ export default function StudentResults() {
     { title: 'Pending Results', value: results.filter(r => r.status !== 'Published').length.toString(), icon: BarChart2, color: 'text-purple-600', bg: 'bg-purple-100' },
   ];
 
-  const handleDownload = (exam: string) => {
-    toast.success(`Downloading result for: ${exam}`);
+  const handleDownload = async (examId: string, exam: string) => {
+    const { data } = await api.get(`/exams/${examId}/scorecard.pdf`, { responseType: 'blob' });
+    const href = URL.createObjectURL(data);
+    const anchor = document.createElement('a');
+    anchor.href = href; anchor.download = `${exam}-scorecard.pdf`; anchor.click();
+    URL.revokeObjectURL(href);
   };
 
   return (
@@ -159,7 +160,7 @@ export default function StudentResults() {
                       </TableCell>
                       <TableCell className="text-right">
                         {r.status === 'Published' ? (
-                          <Button variant="ghost" size="sm" onClick={() => handleDownload(r.exam)} className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                          <Button variant="ghost" size="sm" onClick={() => handleDownload(r.examId, r.exam)} className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
                             <Download className="h-4 w-4 mr-1" /> PDF
                           </Button>
                         ) : (

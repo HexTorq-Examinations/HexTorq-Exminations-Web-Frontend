@@ -7,8 +7,8 @@ import { ExamHistoryEntry } from '@/store/examStore';
 // mirrors the server-side enforcement in assertStudentHasMapping exactly, so what a
 // student sees always matches what the API will actually let them do.
 export function getMappingWindow(mapping: ExamMapping): { start: Date; end: Date } {
-  const start = new Date(`${mapping.date}T${mapping.startTime}:00`);
-  const end = new Date(`${mapping.date}T${mapping.endTime}:00`);
+  const start = new Date(mapping.startAt || `${mapping.date}T${mapping.startTime}:00`);
+  const end = new Date(mapping.endAt || `${mapping.date}T${mapping.endTime}:00`);
   return { start, end };
 }
 

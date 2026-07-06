@@ -41,6 +41,8 @@ export const StudentSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters').optional().or(z.literal('')),
   phone: z.string().min(10, 'Valid phone number is required'),
   status: z.enum(['Active', 'Inactive', 'Suspended']).default('Active'),
+  extraTimeMinutes: z.coerce.number().int().min(0).max(1440).default(0),
+  accessibilityNotes: z.string().max(1000).optional().or(z.literal('')),
   createdAt: z.string().optional(),
 });
 export type Student = z.infer<typeof StudentSchema>;
@@ -69,7 +71,12 @@ export const ExamSchema = z.object({
   duration: z.coerce.number().min(10, 'Minimum 10 minutes required'),
   totalMarks: z.coerce.number().min(10, 'Total marks required'),
   passingMarks: z.coerce.number().min(1, 'Passing marks required'),
-  status: z.enum(['Draft', 'Published', 'Completed']).default('Draft'),
+  status: z.enum(['Draft', 'Published', 'Closed']).default('Draft'),
+  version: z.coerce.number().optional(),
+  versionGroupId: z.string().optional(),
+  parentExamId: z.string().optional(),
+  publishedAt: z.string().optional(),
+  closedAt: z.string().optional(),
   shuffleQuestions: z.boolean().default(false),
   shuffleOptions: z.boolean().default(false),
   negativeMarking: z.boolean().default(false),
@@ -93,8 +100,12 @@ export const ExamMappingSchema = z.object({
   date: z.string().min(1, 'Date is required'),
   startTime: z.string().min(1, 'Start time is required'),
   endTime: z.string().min(1, 'End time is required'),
+  timezone: z.string().optional(),
+  startAt: z.string().optional(),
+  endAt: z.string().optional(),
   hall: z.string().default('Virtual'),
   status: z.enum(['Scheduled', 'In Progress', 'Completed', 'Cancelled']).default('Scheduled'),
+  graceMinutes: z.coerce.number().min(0).default(0),
 });
 export type ExamMapping = z.infer<typeof ExamMappingSchema>;
 

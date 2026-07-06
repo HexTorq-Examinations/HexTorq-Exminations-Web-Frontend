@@ -12,6 +12,8 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '@/store/authStore';
+import { api } from '@/lib/api';
+import { useRouter } from 'next/navigation';
 
 interface ProfileViewProps {
   role: 'admin' | 'super-admin';
@@ -21,6 +23,9 @@ export function ProfileView({ role }: ProfileViewProps) {
   const isSuperAdmin = role === 'super-admin';
   const roleTitle = isSuperAdmin ? 'Super Administrator' : 'Administrator';
   const { user } = useAuthStore();
+  const router = useRouter();
+  const logout = useAuthStore(s => s.logout);
+  const [passwords, setPasswords] = useState({ current: '', next: '', confirm: '' });
   const [isEditing, setIsEditing] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -43,6 +48,15 @@ export function ProfileView({ role }: ProfileViewProps) {
   const handleSave = () => {
     toast.success('Profile updated successfully');
     setIsEditing(false);
+  };
+
+  const handlePasswordChange = async () => {
+    if (passwords.next.length < 6) return toast.error('New password must be at least 6 characters');
+    if (passwords.next !== passwords.confirm) return toast.error('Passwords do not match');
+    await api.post('/users/me/password', { currentPassword: passwords.current, newPassword: passwords.next });
+    toast.success('Password updated. Sign in again.');
+    await logout();
+    router.replace('/login');
   };
 
   return (
@@ -174,17 +188,17 @@ export function ProfileView({ role }: ProfileViewProps) {
                   <CardContent className="p-6 space-y-4">
                     <div className="space-y-2 max-w-md">
                       <Label htmlFor="current-password">Current Password</Label>
-                      <Input id="current-password" type="password" className="bg-slate-50 dark:bg-slate-900/50" />
+                      <Input id="current-password" type="password" autoComplete="current-password" value={passwords.current} onChange={e => setPasswords({ ...passwords, current: e.target.value })} className="bg-slate-50 dark:bg-slate-900/50" />
                     </div>
                     <div className="space-y-2 max-w-md">
                       <Label htmlFor="new-password">New Password</Label>
-                      <Input id="new-password" type="password" className="bg-slate-50 dark:bg-slate-900/50" />
+                      <Input id="new-password" type="password" autoComplete="new-password" value={passwords.next} onChange={e => setPasswords({ ...passwords, next: e.target.value })} className="bg-slate-50 dark:bg-slate-900/50" />
                     </div>
                     <div className="space-y-2 max-w-md">
                       <Label htmlFor="confirm-password">Confirm Password</Label>
-                      <Input id="confirm-password" type="password" className="bg-slate-50 dark:bg-slate-900/50" />
+                      <Input id="confirm-password" type="password" autoComplete="new-password" value={passwords.confirm} onChange={e => setPasswords({ ...passwords, confirm: e.target.value })} className="bg-slate-50 dark:bg-slate-900/50" />
                     </div>
-                    <Button className="bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 mt-4">Update Password</Button>
+                    <Button onClick={handlePasswordChange} className="bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 mt-4">Update Password</Button>
                   </CardContent>
                 </Card>
 

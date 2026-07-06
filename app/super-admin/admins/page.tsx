@@ -101,7 +101,7 @@ export default function AdminsPage() {
       return;
     }
     try {
-      await addOrganization({ ...orgForm, plan: 'Basic', status: 'Active' });
+      await addOrganization({ ...orgForm, timezone: 'Asia/Kolkata', plan: 'Basic', status: 'Active' });
       setOrgForm({ name: '', code: '', adminEmail: '', domain: '' });
       setAddOrgOpen(false);
     } catch (error: any) {

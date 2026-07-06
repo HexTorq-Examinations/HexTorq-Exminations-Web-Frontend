@@ -56,7 +56,7 @@ export default function StudentUpcomingExams() {
   const upcomingExams = myMappings
     .filter(m => getTemporalStatus(m, now) === 'upcoming' && !hasCompletedMapping(m, examHistory))
     .map(m => {
-      const startDateTime = new Date(`${m.date}T${m.startTime}:00`);
+      const startDateTime = new Date(m.startAt || `${m.date}T${m.startTime}:00`);
       return {
         id: m.examId,
         mappingId: m.id,

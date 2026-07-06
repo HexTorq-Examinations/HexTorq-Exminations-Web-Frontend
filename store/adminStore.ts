@@ -17,12 +17,14 @@ interface AdminState {
   importStudentsFromFile: (file: File, classId: string) => Promise<number>;
   updateStudent: (id: string, student: Partial<Student>) => Promise<void>;
   deleteStudent: (id: string) => Promise<void>;
+  sendStudentPasswordReset: (id: string) => Promise<void>;
 
   // Exams
   fetchExams: () => Promise<void>;
   addExam: (exam: Omit<Exam, 'id'>) => Promise<void>;
   updateExam: (id: string, exam: Partial<Exam>) => Promise<void>;
   deleteExam: (id: string) => Promise<void>;
+  duplicateExam: (id: string) => Promise<void>;
 
   // Questions — scoped to an Exam (no shared question bank)
   fetchQuestions: (examId: string) => Promise<void>;
@@ -34,8 +36,8 @@ interface AdminState {
 
   // Exam Mappings — assigns an Exam to a Class with a date/time/hall
   fetchExamMappings: (filter?: { examId?: string; classId?: string }) => Promise<void>;
-  addExamMapping: (mapping: Omit<ExamMapping, 'id'>) => Promise<void>;
-  updateExamMapping: (id: string, mapping: Partial<ExamMapping>) => Promise<void>;
+  addExamMapping: (mapping: Omit<ExamMapping, 'id'> & { confirmOverlap?: boolean }) => Promise<void>;
+  updateExamMapping: (id: string, mapping: Partial<ExamMapping> & { confirmOverlap?: boolean }) => Promise<void>;
   deleteExamMapping: (id: string) => Promise<void>;
 
   // Results
@@ -102,6 +104,10 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     }));
     toast.success('Student Deleted Successfully');
   },
+  sendStudentPasswordReset: async (id) => {
+    const { data } = await api.post(`/students/${id}/password-reset`);
+    toast.success(data.message || 'Password reset email sent');
+  },
 
   // Exams
   fetchExams: async () => {
@@ -132,6 +138,12 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       isLoading: false,
     }));
     toast.success('Exam Deleted Successfully');
+  },
+  duplicateExam: async (id) => {
+    set({ isLoading: true });
+    const { data } = await api.post(`/exams/${id}/duplicate`);
+    set((state) => ({ exams: [data, ...state.exams], isLoading: false }));
+    toast.success('New draft exam version created');
   },
 
   // Questions
@@ -198,15 +210,25 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
   },
   addExamMapping: async (mappingData) => {
     set({ isLoading: true });
-    await api.post('/exam-mappings', mappingData);
-    await Promise.all([get().fetchExams(), get().fetchExamMappings()]);
-    toast.success('Exam Mapped Successfully');
+    try {
+      await api.post('/exam-mappings', mappingData);
+      await Promise.all([get().fetchExams(), get().fetchExamMappings()]);
+      toast.success('Exam Mapped Successfully');
+    } catch (error) {
+      set({ isLoading: false });
+      throw error;
+    }
   },
   updateExamMapping: async (id, data) => {
     set({ isLoading: true });
-    await api.patch(`/exam-mappings/${id}`, data);
-    await Promise.all([get().fetchExams(), get().fetchExamMappings()]);
-    toast.success('Exam Mapping Updated Successfully');
+    try {
+      await api.patch(`/exam-mappings/${id}`, data);
+      await Promise.all([get().fetchExams(), get().fetchExamMappings()]);
+      toast.success('Exam Mapping Updated Successfully');
+    } catch (error) {
+      set({ isLoading: false });
+      throw error;
+    }
   },
   deleteExamMapping: async (id) => {
     set({ isLoading: true });

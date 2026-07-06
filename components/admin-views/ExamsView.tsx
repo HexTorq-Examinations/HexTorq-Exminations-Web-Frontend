@@ -30,6 +30,8 @@ import { SkeletonTable } from '@/components/common/SkeletonTable';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { ExamFormModal } from './modals/ExamFormModal';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface ExamsViewProps {
   role: 'admin' | 'super-admin';
@@ -38,7 +40,8 @@ interface ExamsViewProps {
 export function ExamsView({ role }: ExamsViewProps) {
   const isSuperAdmin = role === 'super-admin';
   const router = useRouter();
-  const { exams, isLoading, fetchExams, deleteExam, updateExam } = useAdminStore();
+  const { exams, isLoading, fetchExams, deleteExam, updateExam, duplicateExam } = useAdminStore();
+  const [preview, setPreview] = useState<(Exam & { questions: { id: string; text: string; options: string[]; correctAnswer: number; marks: number }[] }) | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -73,7 +76,7 @@ export function ExamsView({ role }: ExamsViewProps) {
   const stats = [
     { title: 'Total Exams', value: exams.length, icon: ClipboardCheck, color: 'text-blue-600', bg: 'bg-blue-100' },
     { title: 'Published', value: exams.filter(e => e.status === 'Published').length, icon: PlayCircle, color: 'text-emerald-600', bg: 'bg-emerald-100' },
-    { title: 'Completed', value: exams.filter(e => e.status === 'Completed').length, icon: CalendarClock, color: 'text-amber-600', bg: 'bg-amber-100' },
+    { title: 'Closed', value: exams.filter(e => e.status === 'Closed').length, icon: CalendarClock, color: 'text-amber-600', bg: 'bg-amber-100' },
     { title: 'Drafts', value: exams.filter(e => e.status === 'Draft').length, icon: Edit3, color: 'text-slate-600', bg: 'bg-slate-100' },
   ];
 
@@ -96,8 +99,13 @@ export function ExamsView({ role }: ExamsViewProps) {
   };
 
   const handleDuplicate = async (exam: Exam) => {
-    // Duplicate exam implies calling addExam or just a toast for now to simulate.
-    toast.success(`Duplicated exam: ${exam.title}`);
+    if (exam.id) await duplicateExam(exam.id);
+  };
+
+  const handlePreview = async (exam: Exam) => {
+    if (!exam.id) return;
+    const { data } = await api.get(`/exams/${exam.id}/preview`);
+    setPreview(data);
   };
 
   const handleManageQuestions = (exam: Exam) => {
@@ -187,7 +195,7 @@ export function ExamsView({ role }: ExamsViewProps) {
                         variant="secondary"
                         className={`
                           ${exam.status === 'Published' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : ''}
-                          ${exam.status === 'Completed' ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' : ''}
+                          ${exam.status === 'Closed' ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' : ''}
                           ${exam.status === 'Draft' ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' : ''}
                           font-medium border-0
                         `}
@@ -206,7 +214,17 @@ export function ExamsView({ role }: ExamsViewProps) {
                               <Send className="mr-2 h-4 w-4" /> Publish Exam
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem className="cursor-pointer">
+                          {exam.status === 'Published' && (
+                            <>
+                              <DropdownMenuItem className="cursor-pointer" onClick={() => updateExam(exam.id!, { status: 'Draft' })}>
+                                Unpublish Exam
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="cursor-pointer" onClick={() => updateExam(exam.id!, { status: 'Closed' })}>
+                                Close Exam
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                          <DropdownMenuItem className="cursor-pointer" onClick={() => handlePreview(exam)}>
                             <Eye className="mr-2 h-4 w-4 text-slate-500" /> Preview
                           </DropdownMenuItem>
                           <DropdownMenuItem className="cursor-pointer" onClick={() => handleEdit(exam)}>
@@ -216,7 +234,7 @@ export function ExamsView({ role }: ExamsViewProps) {
                             <ListChecks className="mr-2 h-4 w-4 text-purple-500" /> Manage Questions
                           </DropdownMenuItem>
                           <DropdownMenuItem className="cursor-pointer" onClick={() => handleDuplicate(exam)}>
-                            <Copy className="mr-2 h-4 w-4 text-indigo-500" /> Duplicate
+                            <Copy className="mr-2 h-4 w-4 text-indigo-500" /> {exam.publishedAt ? 'Create Correction Version' : 'Duplicate'}
                           </DropdownMenuItem>
                           <DropdownMenuItem className="cursor-pointer">
                             <Settings className="mr-2 h-4 w-4 text-slate-500" /> Configure Rules
@@ -267,6 +285,21 @@ export function ExamsView({ role }: ExamsViewProps) {
         onConfirm={handleConfirmDelete}
         isLoading={isLoading}
       />
+
+      <Dialog open={!!preview} onOpenChange={(open) => { if (!open) setPreview(null); }}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{preview?.title} — Preview</DialogTitle></DialogHeader>
+          <div className="space-y-5">
+            <p className="text-sm text-slate-500">Version {preview?.version || 1} · {preview?.duration} minutes · {preview?.totalMarks} marks</p>
+            {preview?.questions.map((question, index) => (
+              <div key={question.id} className="border rounded-lg p-4">
+                <p className="font-semibold">{index + 1}. {question.text} <span className="text-xs text-slate-500">({question.marks} marks)</span></p>
+                <div className="mt-3 space-y-1 text-sm">{question.options.map((option, optionIndex) => <p key={optionIndex} className={optionIndex === question.correctAnswer ? 'text-emerald-600 font-medium' : 'text-slate-600'}>{String.fromCharCode(65 + optionIndex)}. {option}</p>)}</div>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

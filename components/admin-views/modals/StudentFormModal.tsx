@@ -26,6 +26,7 @@ export function StudentFormModal({ open, onOpenChange, studentToEdit, classId }:
     defaultValues: studentToEdit || {
       status: 'Active',
       classId,
+      extraTimeMinutes: 0,
     }
   });
 
@@ -34,7 +35,7 @@ export function StudentFormModal({ open, onOpenChange, studentToEdit, classId }:
       if (studentToEdit) {
         reset(studentToEdit);
       } else {
-        reset({ status: 'Active', classId });
+        reset({ status: 'Active', classId, extraTimeMinutes: 0 });
       }
     }
   }, [open, studentToEdit, classId, reset]);
@@ -121,6 +122,17 @@ export function StudentFormModal({ open, onOpenChange, studentToEdit, classId }:
                   <SelectItem value="Suspended">Suspended</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="extraTimeMinutes">Extra exam time (minutes)</Label>
+              <Input id="extraTimeMinutes" type="number" min="0" max="1440" {...register('extraTimeMinutes')} />
+              {errors.extraTimeMinutes && <p className="text-red-500 text-xs">{errors.extraTimeMinutes.message}</p>}
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="accessibilityNotes">Accessibility and accommodation notes</Label>
+              <textarea id="accessibilityNotes" {...register('accessibilityNotes')} rows={3} maxLength={1000} className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="Approved reader, screen-reader preference, seating needs, or other accommodations" />
             </div>
             
           </div>

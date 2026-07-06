@@ -23,6 +23,7 @@ export interface Organization {
   adminEmail: string;
   status: 'Active' | 'Inactive';
   plan: 'Enterprise' | 'Pro' | 'Basic';
+  timezone: string;
   studentsCount: number;
   createdAt: string;
 }

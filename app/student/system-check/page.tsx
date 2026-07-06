@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, XCircle, Monitor, Wifi, ShieldAlert } from 'lucide-react';
+import { api } from '@/lib/api';
 
 export default function SystemCheckPage() {
   const router = useRouter();
@@ -13,9 +14,24 @@ export default function SystemCheckPage() {
 
   const [checks, setChecks] = useState({
     fullscreen: false,
-    internet: true, // Assuming true if page loaded, could do ping test
+    internet: false,
     declaration: false,
   });
+  const [checkingInternet, setCheckingInternet] = useState(true);
+  const [latencyMs, setLatencyMs] = useState<number | null>(null);
+
+  const checkBackend = async () => {
+    setCheckingInternet(true);
+    const started = performance.now();
+    try {
+      await api.get('/time');
+      setLatencyMs(Math.round(performance.now() - started));
+      setChecks(prev => ({ ...prev, internet: true }));
+    } catch {
+      setLatencyMs(null);
+      setChecks(prev => ({ ...prev, internet: false }));
+    } finally { setCheckingInternet(false); }
+  };
 
   const requestFullscreen = async () => {
     try {
@@ -30,11 +46,19 @@ export default function SystemCheckPage() {
 
   // Listen for fullscreen exit during check
   useEffect(() => {
+    checkBackend();
     const handleFullscreenChange = () => {
       setChecks(prev => ({ ...prev, fullscreen: !!document.fullscreenElement }));
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    const offline = () => setChecks(prev => ({ ...prev, internet: false }));
+    window.addEventListener('offline', offline);
+    window.addEventListener('online', checkBackend);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      window.removeEventListener('offline', offline);
+      window.removeEventListener('online', checkBackend);
+    };
   }, []);
 
   const allChecksPassed = checks.fullscreen && checks.internet && checks.declaration;
@@ -75,13 +99,13 @@ export default function SystemCheckPage() {
                 <Wifi className="w-5 h-5 text-slate-500" />
                 <div>
                   <h4 className="font-semibold text-slate-900">Internet Connection</h4>
-                  <p className="text-sm text-slate-500">Stable connection detected</p>
+                  <p className="text-sm text-slate-500" aria-live="polite">{checkingInternet ? 'Checking examination server...' : checks.internet ? `Server reachable${latencyMs !== null ? ` (${latencyMs} ms)` : ''}` : 'Examination server is unreachable'}</p>
                 </div>
               </div>
-              {checks.internet ? (
+              {checkingInternet ? <span className="h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /> : checks.internet ? (
                 <CheckCircle2 className="w-6 h-6 text-green-500" />
               ) : (
-                <XCircle className="w-6 h-6 text-red-500" />
+                <Button variant="outline" size="sm" onClick={checkBackend}><XCircle className="mr-2 w-4 h-4 text-red-500" />Retry</Button>
               )}
             </div>
 

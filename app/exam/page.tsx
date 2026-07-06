@@ -27,7 +27,7 @@ function SecureExamInterface() {
   const {
     status, examId: storeExamId, startExam, refreshAttemptStatus, endExam, timeRemaining, tickTimer, answers, saveAnswer,
     violations, clearSession, isPaused, setIsPaused, isOnline, unsyncedQuestionIds,
-    unsyncedViolationIds, pendingSubmitStatus,
+    unsyncedViolationIds, pendingSubmitStatus, submissionReceipt,
   } = useExamStore();
   const { violationsCount, maxViolations, requestFullscreen, hasExceededViolations, isTerminated } = useProctoring();
   const pendingSyncCount = unsyncedQuestionIds.length + unsyncedViolationIds.length + (pendingSubmitStatus ? 1 : 0);
@@ -93,7 +93,11 @@ function SecureExamInterface() {
       if (!document.fullscreenElement) {
         await document.documentElement.requestFullscreen();
       }
-      await startExam(currentExamId);
+      const startedAttempt = await startExam(currentExamId);
+      if (startedAttempt.questions.length > 0) {
+        setQuestions(startedAttempt.questions);
+        setCurrentQuestionIdx(0);
+      }
     } catch (err) {
       // The server is the source of truth for the exam's time window and re-attempt
       // rules — the api client already toasts the rejection reason (too early,
@@ -216,6 +220,13 @@ function SecureExamInterface() {
               Waiting for a connection to confirm your submission with the server. Your answers are saved on this device and will sync automatically — keep this tab open.
             </div>
           )}
+          {submissionReceipt && !pendingSubmitStatus && (
+            <dl className="mb-6 rounded-lg border bg-slate-50 p-4 text-left text-sm" aria-label="Server submission receipt">
+              <div className="flex justify-between gap-4"><dt className="text-slate-500">Attempt ID</dt><dd className="font-mono break-all text-right">{submissionReceipt.attemptId}</dd></div>
+              <div className="mt-2 flex justify-between gap-4"><dt className="text-slate-500">Submitted</dt><dd>{new Date(submissionReceipt.submittedAt).toLocaleString()}</dd></div>
+              <div className="mt-2 flex justify-between gap-4"><dt className="text-slate-500">Server confirmed</dt><dd>{new Date(submissionReceipt.serverConfirmedAt).toLocaleString()}</dd></div>
+            </dl>
+          )}
           <div className="space-y-3">
             <Button className="w-full" onClick={() => router.push('/student/dashboard')}>Return to Dashboard</Button>
             {status === 'TERMINATED' && (
@@ -287,7 +298,7 @@ function SecureExamInterface() {
             Violations: {violationsCount}/{maxViolations}
           </div>
           <div className="text-lg md:text-xl font-mono font-bold tracking-wider tabular-nums">
-            {formatTime(timeRemaining)}
+            <span role="timer" aria-live="polite" aria-label={`${timeRemaining} seconds remaining`}>{formatTime(timeRemaining)}</span>
           </div>
           <Button variant="destructive" size="sm" onClick={() => setShowSubmitConfirm(true)} className="font-bold px-2 md:px-4 text-xs md:text-sm">
             Submit

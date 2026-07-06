@@ -126,13 +126,6 @@ export function SettingsView({ role }: SettingsViewProps) {
                     </div>
                     <Switch defaultChecked />
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label className="text-base">Require Camera/Microphone</Label>
-                      <p className="text-sm text-slate-500">Mandatory hardware check before starting an exam.</p>
-                    </div>
-                    <Switch />
-                  </div>
                   <div className="grid gap-2 pt-4 border-t border-slate-100 dark:border-slate-800">
                     <Label htmlFor="grace-period">Grace Period (Minutes)</Label>
                     <Input id="grace-period" type="number" defaultValue="5" className="max-w-[150px] bg-slate-50 dark:bg-slate-900/50" />

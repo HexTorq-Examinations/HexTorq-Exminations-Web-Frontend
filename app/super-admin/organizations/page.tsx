@@ -24,7 +24,7 @@ import { useSuperAdminStore, Organization } from '@/store/superAdminStore';
 export default function OrganizationsPage() {
   const { organizations, fetchOrganizations, addOrganization, updateOrganization, deleteOrganization } = useSuperAdminStore();
   const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({ name: '', code: '', adminEmail: '', domain: '' });
+  const [form, setForm] = useState({ name: '', code: '', adminEmail: '', domain: '', timezone: 'Asia/Kolkata' });
 
   useEffect(() => {
     fetchOrganizations();
@@ -43,7 +43,7 @@ export default function OrganizationsPage() {
       return;
     }
     await addOrganization({ ...form, plan: 'Basic', status: 'Active' });
-    setForm({ name: '', code: '', adminEmail: '', domain: '' });
+    setForm({ name: '', code: '', adminEmail: '', domain: '', timezone: 'Asia/Kolkata' });
     setModalOpen(false);
   };
 
@@ -101,6 +101,7 @@ export default function OrganizationsPage() {
                 <TableHead>Admins</TableHead>
                 <TableHead>Students</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Timezone</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -131,6 +132,7 @@ export default function OrganizationsPage() {
                       {org.status}
                     </Badge>
                   </TableCell>
+                  <TableCell><span className="text-xs font-mono">{org.timezone}</span></TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">
@@ -183,6 +185,10 @@ export default function OrganizationsPage() {
                 <Label>Website Domain</Label>
                 <Input placeholder="org.edu" value={form.domain} onChange={e => setForm(f => ({ ...f, domain: e.target.value }))} />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>IANA Timezone *</Label>
+              <Input placeholder="Asia/Kolkata" value={form.timezone} onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))} />
             </div>
           </div>
           <DialogFooter>

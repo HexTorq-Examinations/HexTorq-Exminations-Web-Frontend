@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Hexagon, ArrowRight, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
 
 const loginSchema = z.object({
   email: z.string().min(1, 'Please enter your email or Student ID'),
@@ -129,6 +130,11 @@ export default function LoginPage() {
                   <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 opacity-0 group-focus-within:opacity-10 -z-10 blur transition-opacity" />
                 </div>
                 {errors.password && <p className="text-xs text-red-500 ml-1 mt-1">{errors.password.message}</p>}
+              </div>
+              <div className="text-right">
+                <Link href="/forgot-password" className="text-sm font-medium text-blue-600 hover:text-blue-700">
+                  Forgot password?
+                </Link>
               </div>
             </div>
 

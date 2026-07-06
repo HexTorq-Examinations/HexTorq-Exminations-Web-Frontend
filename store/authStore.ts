@@ -47,14 +47,13 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
         try {
           await authService.logout();
+        } finally {
           set({
             user: null,
             token: null,
             isAuthenticated: false,
             isLoading: false,
           });
-        } catch (error) {
-          set({ isLoading: false });
         }
       },
 

@@ -37,6 +37,7 @@ import { Pagination } from '@/components/common/Pagination';
 import { EmptyState } from '@/components/common/EmptyState';
 import { SkeletonTable } from '@/components/common/SkeletonTable';
 import { api } from '@/lib/api';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface ResultsViewProps {
   role: 'admin' | 'super-admin';
@@ -51,6 +52,9 @@ interface ResultsAnalytics {
   gradeDistribution: { name: string; value: number; color: string }[];
 }
 
+interface AttemptSummary { id: string; studentName: string; registerNumber?: string; status: string; score: number; violationsCount: number; }
+interface AttemptDetail extends AttemptSummary { exam: { title: string; totalMarks: number }; student: { name: string; registerNumber?: string }; violations: { type: string; description: string }[]; questions: { id: string; text: string; options: string[]; correctAnswer: string; selectedAnswer?: string; marks: number }[]; }
+
 export function ResultsView({ role }: ResultsViewProps) {
   const isSuperAdmin = role === 'super-admin';
   const { results, isLoading, fetchResults, publishResult } = useAdminStore();
@@ -61,6 +65,9 @@ export function ResultsView({ role }: ResultsViewProps) {
 
   const [analytics, setAnalytics] = useState<ResultsAnalytics | null>(null);
   const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(true);
+  const [attempts, setAttempts] = useState<AttemptSummary[]>([]);
+  const [attemptsOpen, setAttemptsOpen] = useState(false);
+  const [attemptDetail, setAttemptDetail] = useState<AttemptDetail | null>(null);
 
   useEffect(() => {
     fetchResults();
@@ -83,6 +90,43 @@ export function ResultsView({ role }: ResultsViewProps) {
     results.filter(r => r.status !== 'Published').forEach(r => {
       if (r.id) publishResult(r.id);
     });
+  };
+
+  const openAttempts = async (examId: string) => {
+    const { data } = await api.get('/results/attempts', { params: { examId } });
+    setAttempts(data);
+    setAttemptsOpen(true);
+  };
+
+  const openAttempt = async (id: string) => {
+    const { data } = await api.get(`/results/attempts/${id}`);
+    setAttemptDetail(data);
+  };
+
+  const actionWithReason = async (action: 'regrade' | 'reset' | 'extend' | 'evaluate') => {
+    if (!attemptDetail) return;
+    const reason = window.prompt(`Reason for ${action}:`);
+    if (!reason) return;
+    if (action === 'evaluate') {
+      const score = Number(window.prompt('New score:'));
+      if (!Number.isFinite(score)) return;
+      await api.patch(`/results/attempts/${attemptDetail.id}/evaluate`, { score, reason });
+    } else if (action === 'extend') {
+      const minutes = Number(window.prompt('Extension minutes:'));
+      if (!Number.isFinite(minutes) || minutes <= 0) return;
+      await api.post(`/results/attempts/${attemptDetail.id}/extend`, { minutes, reason });
+    } else {
+      await api.post(`/results/attempts/${attemptDetail.id}/${action}`, { reason });
+    }
+    await openAttempt(attemptDetail.id);
+  };
+
+  const download = async (url: string, filename: string) => {
+    const { data } = await api.get(url, { responseType: 'blob' });
+    const href = URL.createObjectURL(data);
+    const anchor = document.createElement('a');
+    anchor.href = href; anchor.download = filename; anchor.click();
+    URL.revokeObjectURL(href);
   };
 
   // Filtering
@@ -218,7 +262,7 @@ export function ResultsView({ role }: ResultsViewProps) {
       <Card className="border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col">
         <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-950">
           <h3 className="font-semibold text-lg text-slate-900 dark:text-slate-100">Exam Results Registry</h3>
-          <Button variant="outline" size="sm" className="h-8 shadow-sm">
+          <Button variant="outline" size="sm" className="h-8 shadow-sm" onClick={() => download('/results/export/all.csv', 'all-results.csv')}>
             <Download className="w-4 h-4 mr-2" /> Download All
           </Button>
         </div>
@@ -266,6 +310,9 @@ export function ResultsView({ role }: ResultsViewProps) {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" size="sm" onClick={() => openAttempts(result.examId)}><Eye className="w-4 h-4 mr-1" /> Attempts</Button>
+                        <Button variant="outline" size="sm" onClick={() => download(`/results/${result.id}/export.csv`, `${result.examName}.csv`)}><Download className="w-4 h-4" /></Button>
                       {result.status === 'Pending Evaluation' ? (
                         <Button 
                           size="sm" 
@@ -275,11 +322,8 @@ export function ResultsView({ role }: ResultsViewProps) {
                         >
                           <Share2 className="w-4 h-4 mr-1.5" /> Publish
                         </Button>
-                      ) : (
-                        <Button variant="outline" size="sm" className="shadow-sm">
-                          <Eye className="w-4 h-4 mr-1.5 text-slate-500" /> View Report
-                        </Button>
-                      )}
+                      ) : null}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -302,6 +346,28 @@ export function ResultsView({ role }: ResultsViewProps) {
           onPageChange={setCurrentPage}
         />
       </Card>
+
+      <Dialog open={attemptsOpen} onOpenChange={setAttemptsOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Student Attempts</DialogTitle></DialogHeader>
+          <div className="space-y-2">{attempts.map((attempt) => <button key={attempt.id} onClick={() => openAttempt(attempt.id)} className="w-full border rounded-lg p-3 flex justify-between text-left hover:bg-slate-50"><span><b>{attempt.studentName}</b><br/><span className="text-xs text-slate-500">{attempt.registerNumber} · {attempt.violationsCount} violations</span></span><span>{attempt.score} · {attempt.status}</span></button>)}</div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!attemptDetail} onOpenChange={(open) => { if (!open) setAttemptDetail(null); }}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{attemptDetail?.student.name} — {attemptDetail?.exam.title}</DialogTitle></DialogHeader>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => actionWithReason('evaluate')}>Manual Score</Button>
+            <Button size="sm" variant="outline" onClick={() => actionWithReason('regrade')}>Regrade Snapshot</Button>
+            <Button size="sm" variant="outline" onClick={() => actionWithReason('extend')}>Extend Time</Button>
+            <Button size="sm" variant="destructive" onClick={() => actionWithReason('reset')}>Reset Attempt</Button>
+            <Button size="sm" variant="outline" onClick={() => download(`/results/attempts/${attemptDetail?.id}/scorecard.pdf`, 'scorecard.pdf')}>Scorecard PDF</Button>
+          </div>
+          <p className="font-semibold">Score: {attemptDetail?.score} / {attemptDetail?.exam.totalMarks} · Violations: {attemptDetail?.violations?.length || 0}</p>
+          <div className="space-y-3">{attemptDetail?.questions.map((question, index) => <div key={question.id} className="border rounded-lg p-3 text-sm"><p className="font-medium">{index + 1}. {question.text}</p><p className="text-slate-600">Selected: {question.selectedAnswer || 'Unanswered'}</p><p className="text-emerald-600">Correct: {question.correctAnswer}</p></div>)}</div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

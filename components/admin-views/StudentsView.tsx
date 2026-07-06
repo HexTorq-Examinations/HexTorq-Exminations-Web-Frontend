@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
-import { Users, GraduationCap, ClipboardCheck, UserPlus, MoreVertical, Edit, Trash2, Eye, Plus, UploadCloud } from 'lucide-react';
+import { Users, GraduationCap, ClipboardCheck, UserPlus, MoreVertical, Edit, Trash2, Eye, Plus, UploadCloud, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -40,7 +40,7 @@ interface StudentsViewProps {
 
 export function StudentsView({ role, classId, className, onBack, breadcrumbs }: StudentsViewProps) {
   const isSuperAdmin = role === 'super-admin';
-  const { students, isLoading, fetchStudents, deleteStudent } = useAdminStore();
+  const { students, isLoading, fetchStudents, deleteStudent, sendStudentPasswordReset } = useAdminStore();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -207,6 +207,9 @@ export function StudentsView({ role, classId, className, onBack, breadcrumbs }: 
                           </DropdownMenuItem>
                           <DropdownMenuItem className="cursor-pointer" onClick={() => handleEdit(student)}>
                             <Edit className="mr-2 h-4 w-4 text-blue-500" /> Edit Student
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="cursor-pointer" onClick={() => sendStudentPasswordReset(student.id!)}>
+                            <KeyRound className="mr-2 h-4 w-4 text-amber-500" /> Send Password Reset
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem className="cursor-pointer text-red-600 focus:bg-red-50 focus:text-red-600 dark:focus:bg-red-950" onClick={() => handleDeleteClick(student.id!)}>
