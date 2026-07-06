@@ -14,6 +14,8 @@ interface PageHeaderProps {
   showSearch?: boolean;
   actions?: React.ReactNode;
   onSearch?: (searchTerm: string) => void;
+  onFilter?: () => void;
+  onExport?: () => void;
 }
 
 export function PageHeader({ 
@@ -22,7 +24,9 @@ export function PageHeader({
   breadcrumbs,
   showSearch = true,
   actions,
-  onSearch
+  onSearch,
+  onFilter,
+  onExport,
 }: PageHeaderProps) {
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -91,11 +95,11 @@ export function PageHeader({
             />
           </div>
           <div className="flex items-center gap-3 w-full sm:w-auto">
-            <Button variant="outline" className="h-10 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-sm flex-1 sm:flex-none">
+            <Button type="button" variant="outline" onClick={onFilter} disabled={!onFilter} className="h-10 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-sm flex-1 sm:flex-none">
               <Filter className="mr-2 h-4 w-4 text-slate-500" />
               Filters
             </Button>
-            <Button variant="outline" className="h-10 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-sm flex-1 sm:flex-none">
+            <Button type="button" variant="outline" onClick={onExport} disabled={!onExport} className="h-10 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-sm flex-1 sm:flex-none">
               <Download className="mr-2 h-4 w-4 text-slate-500" />
               Export
             </Button>

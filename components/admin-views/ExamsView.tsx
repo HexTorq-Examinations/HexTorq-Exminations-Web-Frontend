@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
-import { ClipboardCheck, PlayCircle, CalendarClock, Edit3, MoreVertical, Settings, Eye, Copy, Trash2, Send, Users, Edit, Plus, ListChecks } from 'lucide-react';
+import { ClipboardCheck, PlayCircle, CalendarClock, Edit3, MoreVertical, Settings, Eye, Copy, Trash2, Send, Users, Edit, Plus, ListChecks, MonitorPlay } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,6 +32,7 @@ import { ExamFormModal } from './modals/ExamFormModal';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { StudentExamPreview, type PreviewExam } from './StudentExamPreview';
 
 interface ExamsViewProps {
   role: 'admin' | 'super-admin';
@@ -42,6 +43,7 @@ export function ExamsView({ role }: ExamsViewProps) {
   const router = useRouter();
   const { exams, isLoading, fetchExams, deleteExam, updateExam, duplicateExam } = useAdminStore();
   const [preview, setPreview] = useState<(Exam & { questions: { id: string; text: string; options: string[]; correctAnswer: number; marks: number }[] }) | null>(null);
+  const [studentPreview, setStudentPreview] = useState<PreviewExam | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -106,6 +108,12 @@ export function ExamsView({ role }: ExamsViewProps) {
     if (!exam.id) return;
     const { data } = await api.get(`/exams/${exam.id}/preview`);
     setPreview(data);
+  };
+
+  const handleStudentPreview = async (exam: Exam) => {
+    if (!exam.id) return;
+    const { data } = await api.get(`/exams/${exam.id}/preview`);
+    setStudentPreview(data);
   };
 
   const handleManageQuestions = (exam: Exam) => {
@@ -227,6 +235,9 @@ export function ExamsView({ role }: ExamsViewProps) {
                           <DropdownMenuItem className="cursor-pointer" onClick={() => handlePreview(exam)}>
                             <Eye className="mr-2 h-4 w-4 text-slate-500" /> Preview
                           </DropdownMenuItem>
+                          <DropdownMenuItem className="cursor-pointer" onClick={() => handleStudentPreview(exam)}>
+                            <MonitorPlay className="mr-2 h-4 w-4 text-emerald-600" /> Student Portal Preview
+                          </DropdownMenuItem>
                           <DropdownMenuItem className="cursor-pointer" onClick={() => handleEdit(exam)}>
                             <Edit className="mr-2 h-4 w-4 text-blue-500" /> Edit Details
                           </DropdownMenuItem>
@@ -300,6 +311,7 @@ export function ExamsView({ role }: ExamsViewProps) {
           </div>
         </DialogContent>
       </Dialog>
+      {studentPreview && <StudentExamPreview key={studentPreview.id} exam={studentPreview} onClose={() => setStudentPreview(null)} />}
     </div>
   );
 }

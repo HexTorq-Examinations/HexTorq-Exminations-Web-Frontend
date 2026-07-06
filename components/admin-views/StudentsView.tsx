@@ -29,6 +29,8 @@ import { SkeletonTable } from '@/components/common/SkeletonTable';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { StudentFormModal } from './modals/StudentFormModal';
 import { FileImportStudentsModal } from './modals/FileImportStudentsModal';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from 'sonner';
 
 interface StudentsViewProps {
   role: 'admin' | 'super-admin';
@@ -44,6 +46,9 @@ export function StudentsView({ role, classId, className, onBack, breadcrumbs }: 
 
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [showFilters, setShowFilters] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [accommodationFilter, setAccommodationFilter] = useState('all');
   const pageSize = 10;
 
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -64,10 +69,39 @@ export function StudentsView({ role, classId, className, onBack, breadcrumbs }: 
   };
 
   // Filtering
-  const filteredStudents = students.filter(s =>
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.registerNumber.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredStudents = students.filter(s => {
+    const query = searchTerm.trim().toLowerCase();
+    const matchesSearch = !query || [s.name, s.registerNumber, s.email, s.phone]
+      .some(value => (value || '').toLowerCase().includes(query));
+    const matchesStatus = statusFilter === 'all' || s.status === statusFilter;
+    const hasAccommodation = (s.extraTimeMinutes || 0) > 0 || !!s.accessibilityNotes?.trim();
+    const matchesAccommodation = accommodationFilter === 'all'
+      || (accommodationFilter === 'yes' ? hasAccommodation : !hasAccommodation);
+    return matchesSearch && matchesStatus && matchesAccommodation;
+  });
+
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, statusFilter, accommodationFilter]);
+
+  const handleExport = () => {
+    if (filteredStudents.length === 0) return toast.error('There are no students to export');
+    const safe = (value: unknown) => {
+      let text = String(value ?? '');
+      if (/^[=+\-@]/.test(text)) text = `'${text}`;
+      return `"${text.replace(/"/g, '""')}"`;
+    };
+    const rows = [
+      ['Register Number', 'Name', 'Email', 'Phone', 'Status', 'Extra Time Minutes', 'Accessibility Notes'],
+      ...filteredStudents.map(s => [s.registerNumber, s.name, s.email, s.phone, s.status, s.extraTimeMinutes || 0, s.accessibilityNotes || '']),
+    ];
+    const blob = new Blob(['\uFEFF' + rows.map(row => row.map(safe).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `students-${className || classId}-${new Date().toISOString().slice(0, 10)}.csv`.replace(/[^a-z0-9._-]/gi, '-');
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success(`${filteredStudents.length} student${filteredStudents.length === 1 ? '' : 's'} exported`);
+  };
 
   // Pagination
   const totalRecords = filteredStudents.length;
@@ -122,6 +156,8 @@ export function StudentsView({ role, classId, className, onBack, breadcrumbs }: 
         ]}
         showSearch={true}
         onSearch={setSearchTerm}
+        onFilter={() => setShowFilters(value => !value)}
+        onExport={handleExport}
         actions={
           <div className="flex gap-3">
             {onBack && (
@@ -138,6 +174,29 @@ export function StudentsView({ role, classId, className, onBack, breadcrumbs }: 
           </div>
         }
       />
+
+      {showFilters && (
+        <Card className="border-slate-200 dark:border-slate-800">
+          <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-end">
+            <div className="w-full sm:w-56">
+              <label className="mb-2 block text-sm font-medium" htmlFor="student-status-filter">Status</label>
+              <Select value={statusFilter} onValueChange={value => value && setStatusFilter(value)}>
+                <SelectTrigger id="student-status-filter"><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="all">All statuses</SelectItem><SelectItem value="Active">Active</SelectItem><SelectItem value="Inactive">Inactive</SelectItem><SelectItem value="Suspended">Suspended</SelectItem></SelectContent>
+              </Select>
+            </div>
+            <div className="w-full sm:w-64">
+              <label className="mb-2 block text-sm font-medium" htmlFor="student-accommodation-filter">Accommodation</label>
+              <Select value={accommodationFilter} onValueChange={value => value && setAccommodationFilter(value)}>
+                <SelectTrigger id="student-accommodation-filter"><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="all">All students</SelectItem><SelectItem value="yes">Has accommodation</SelectItem><SelectItem value="no">No accommodation</SelectItem></SelectContent>
+              </Select>
+            </div>
+            <Button type="button" variant="ghost" onClick={() => { setStatusFilter('all'); setAccommodationFilter('all'); }}>Clear filters</Button>
+            <span className="text-sm text-slate-500 sm:ml-auto" aria-live="polite">{filteredStudents.length} result{filteredStudents.length === 1 ? '' : 's'}</span>
+          </CardContent>
+        </Card>
+      )}
       
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">

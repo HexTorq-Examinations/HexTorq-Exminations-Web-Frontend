@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import { api } from '@/lib/api';
 import { useAcademicStore } from '@/store/academicStore';
+import { toast } from 'sonner';
 
 interface ReportsViewProps {
   role: 'admin' | 'super-admin';
@@ -23,6 +24,8 @@ interface StatsData {
   publishedResults: number;
   totalAttempts: number;
 }
+type ReportType = 'student-performance' | 'attendance-activity' | 'exam-analysis' | 'question-analytics';
+type ReportFormat = 'pdf' | 'xlsx' | 'csv';
 
 export function ReportsView({ role }: ReportsViewProps) {
   const isSuperAdmin = role === 'super-admin';
@@ -30,6 +33,10 @@ export function ReportsView({ role }: ReportsViewProps) {
   const [studentsByDepartment, setStudentsByDepartment] = useState<{ name: string; students: number }[]>([]);
   const [weeklyActivity, setWeeklyActivity] = useState<{ name: string; attempts: number }[]>([]);
   const [stats, setStats] = useState<StatsData | null>(null);
+  const [reportType, setReportType] = useState<ReportType>('student-performance');
+  const [reportRange, setReportRange] = useState('30d');
+  const [reportFormat, setReportFormat] = useState<ReportFormat>('pdf');
+  const [generating, setGenerating] = useState<string | null>(null);
 
   useEffect(() => {
     const params = !isSuperAdmin && selectedBatchId ? { batchId: selectedBatchId } : {};
@@ -63,6 +70,18 @@ export function ReportsView({ role }: ReportsViewProps) {
     document.body.removeChild(link);
   };
 
+  const downloadReport = async (type: ReportType, format: ReportFormat = 'pdf') => {
+    const key = `${type}-${format}`; setGenerating(key);
+    try {
+      const { data, headers } = await api.get(`/results/reports/${type}`, { params: { range: reportRange, format }, responseType: 'blob' });
+      const disposition = headers['content-disposition'] || '';
+      const filename = disposition.match(/filename="?([^";]+)"?/i)?.[1] || `${type}.${format}`;
+      const url = URL.createObjectURL(data);
+      const link = document.createElement('a'); link.href = url; link.download = filename; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+      toast.success('Report generated and downloaded');
+    } finally { setGenerating(null); }
+  };
+
   const statTiles = [
     { title: 'Total Students', value: (stats?.totalStudents ?? 0).toLocaleString(), icon: Users, color: 'text-blue-600', bg: 'bg-blue-100' },
     { title: 'Total Exams', value: (stats?.totalExams ?? 0).toLocaleString(), icon: ClipboardCheck, color: 'text-purple-600', bg: 'bg-purple-100' },
@@ -75,25 +94,25 @@ export function ReportsView({ role }: ReportsViewProps) {
       title: 'Student Performance', 
       desc: 'Detailed breakdown of student grades, percentiles, and improvement over time.',
       icon: TrendingUp,
-      color: 'text-blue-600', bg: 'bg-blue-100'
+      color: 'text-blue-600', bg: 'bg-blue-100', type: 'student-performance' as ReportType
     },
     { 
       title: 'Attendance & Activity', 
       desc: 'Login history, exam completion rates, and system engagement metrics.',
       icon: Users,
-      color: 'text-emerald-600', bg: 'bg-emerald-100'
+      color: 'text-emerald-600', bg: 'bg-emerald-100', type: 'attendance-activity' as ReportType
     },
     { 
       title: 'Exam Analysis', 
       desc: 'Difficulty distribution, completion time, and overall exam success rates.',
       icon: ClipboardCheck,
-      color: 'text-purple-600', bg: 'bg-purple-100'
+      color: 'text-purple-600', bg: 'bg-purple-100', type: 'exam-analysis' as ReportType
     },
     { 
       title: 'Question Analytics', 
       desc: 'Most failed questions, subject mastery, and question bank health.',
       icon: AlertCircle,
-      color: 'text-amber-600', bg: 'bg-amber-100'
+      color: 'text-amber-600', bg: 'bg-amber-100', type: 'question-analytics' as ReportType
     },
   ];
 
@@ -174,31 +193,33 @@ export function ReportsView({ role }: ReportsViewProps) {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Report Type</label>
-                <select className="w-full flex h-10 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 dark:border-slate-800 dark:bg-slate-950 dark:ring-offset-slate-950 dark:focus-visible:ring-slate-300">
-                  <option>Student Performance</option>
-                  <option>Exam Completion</option>
-                  <option>System Logs</option>
+                <select value={reportType} onChange={e => setReportType(e.target.value as ReportType)} className="w-full flex h-10 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 dark:border-slate-800 dark:bg-slate-950 dark:ring-offset-slate-950 dark:focus-visible:ring-slate-300">
+                  <option value="student-performance">Student Performance</option>
+                  <option value="attendance-activity">Attendance &amp; Activity</option>
+                  <option value="exam-analysis">Exam Analysis</option>
+                  <option value="question-analytics">Question Analytics</option>
                 </select>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Date Range</label>
-                <select className="w-full flex h-10 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 dark:border-slate-800 dark:bg-slate-950 dark:ring-offset-slate-950 dark:focus-visible:ring-slate-300">
-                  <option>Last 7 Days</option>
-                  <option>Last 30 Days</option>
-                  <option>This Quarter</option>
-                  <option>This Year</option>
+                <select value={reportRange} onChange={e => setReportRange(e.target.value)} className="w-full flex h-10 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 dark:border-slate-800 dark:bg-slate-950 dark:ring-offset-slate-950 dark:focus-visible:ring-slate-300">
+                  <option value="7d">Last 7 Days</option>
+                  <option value="30d">Last 30 Days</option>
+                  <option value="quarter">Last 90 Days</option>
+                  <option value="year">Last 12 Months</option>
+                  <option value="all">All Time</option>
                 </select>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Format</label>
                 <div className="flex gap-2">
-                  <Button variant="outline" className="flex-1">PDF</Button>
-                  <Button variant="outline" className="flex-1">Excel</Button>
-                  <Button variant="outline" className="flex-1">CSV</Button>
+                  <Button type="button" variant={reportFormat === 'pdf' ? 'default' : 'outline'} onClick={() => setReportFormat('pdf')} className="flex-1">PDF</Button>
+                  <Button type="button" variant={reportFormat === 'xlsx' ? 'default' : 'outline'} onClick={() => setReportFormat('xlsx')} className="flex-1">Excel</Button>
+                  <Button type="button" variant={reportFormat === 'csv' ? 'default' : 'outline'} onClick={() => setReportFormat('csv')} className="flex-1">CSV</Button>
                 </div>
               </div>
-              <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white mt-4">
-                Generate Report
+              <Button disabled={!!generating} onClick={() => downloadReport(reportType, reportFormat)} className="w-full bg-blue-600 hover:bg-blue-700 text-white mt-4">
+                {generating === `${reportType}-${reportFormat}` ? 'Generating...' : 'Generate Report'}
               </Button>
             </CardContent>
           </Card>
@@ -244,8 +265,8 @@ export function ReportsView({ role }: ReportsViewProps) {
                   <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 flex-1">
                     {category.desc}
                   </p>
-                  <Button variant="outline" className="w-full mt-auto">
-                    <Download className="mr-2 h-4 w-4" /> Download PDF
+                  <Button disabled={!!generating} onClick={() => downloadReport(category.type, 'pdf')} variant="outline" className="w-full mt-auto">
+                    <Download className="mr-2 h-4 w-4" /> {generating === `${category.type}-pdf` ? 'Generating...' : 'Download PDF'}
                   </Button>
                 </CardContent>
               </Card>
