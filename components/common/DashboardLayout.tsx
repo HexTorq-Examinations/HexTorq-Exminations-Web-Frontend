@@ -16,6 +16,7 @@ import { format } from 'date-fns';
 import { useMessagingStore } from '@/store/messagingStore';
 import { useServerClock } from '@/hooks/useServerClock';
 import { useAcademicStore } from '@/store/academicStore';
+import { mediaUrl } from '@/lib/media';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Layers, PlusCircle } from 'lucide-react';
 import { NameFormDialog } from '@/components/admin-views/modals/NameFormDialog';
@@ -348,7 +349,7 @@ export function DashboardLayout({ children, sidebarItems, title }: DashboardLayo
                 className="flex items-center gap-2 cursor-pointer pr-2"
               >
                 <Avatar className="h-8 w-8 shadow-sm">
-                  <AvatarImage src={user.avatar} alt={user.name} />
+                  <AvatarImage src={mediaUrl(user.avatar)} alt={user.name} />
                   <AvatarFallback className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 font-semibold">{user.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div className="hidden sm:flex flex-col items-start text-left">

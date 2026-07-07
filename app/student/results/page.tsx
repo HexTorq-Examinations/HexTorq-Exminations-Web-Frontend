@@ -41,7 +41,7 @@ export default function StudentResults() {
   // Scores/grades are only computed for exams the Admin has actually published a
   // Result for (h.resultStatus, from the server) — score is null otherwise, and we
   // never guess or reveal a percentage from it.
-  const results = (examHistory || []).map((h, i) => {
+  const results = (examHistory || []).filter(h => !h.isTestExam).map((h, i) => {
     const isPublished = h.resultStatus === 'Published' && h.score !== null;
     const scorePct = isPublished && h.totalMarks ? (h.score! / h.totalMarks) * 100 : null;
 

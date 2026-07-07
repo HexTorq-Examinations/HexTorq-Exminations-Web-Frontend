@@ -123,6 +123,8 @@ export const ResultSchema = z.object({
   examId: z.string(),
   examName: z.string(),
   isTestExam: z.boolean().optional(),
+  canPublish: z.boolean().optional(),
+  publishBlockedReason: z.string().nullable().optional(),
   totalStudents: z.coerce.number(),
   publishedDate: z.string(),
   status: z.enum(['Published', 'Pending Evaluation', 'In Progress']),

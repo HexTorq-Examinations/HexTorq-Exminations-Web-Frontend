@@ -14,6 +14,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { api } from '@/lib/api';
 import { useRouter } from 'next/navigation';
+import { mediaUrl } from '@/lib/media';
 
 interface ProfileViewProps {
   role: 'admin' | 'super-admin';
@@ -28,16 +29,26 @@ export function ProfileView({ role }: ProfileViewProps) {
   const [passwords, setPasswords] = useState({ current: '', next: '', confirm: '' });
   const [isEditing, setIsEditing] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [name, setName] = useState(user?.name || '');
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const displayAvatar = avatarPreview || user?.avatar;
+  const displayAvatar = avatarPreview || mediaUrl(user?.avatar);
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  useEffect(() => { setName(user?.name || ''); setPhone(user?.phone || ''); }, [user?.name, user?.phone]);
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const url = URL.createObjectURL(file);
       setAvatarPreview(url);
-      toast.success('Avatar updated successfully');
+      try {
+        const form = new FormData(); form.append('avatar', file);
+        const { data } = await api.post('/users/me/avatar', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+        useAuthStore.setState({ user: data.user });
+        toast.success('Avatar updated successfully');
+      } finally { URL.revokeObjectURL(url); setAvatarPreview(null); if (fileInputRef.current) fileInputRef.current.value = ''; }
     }
   };
 
@@ -45,9 +56,14 @@ export function ProfileView({ role }: ProfileViewProps) {
     fileInputRef.current?.click();
   };
 
-  const handleSave = () => {
-    toast.success('Profile updated successfully');
-    setIsEditing(false);
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const { data } = await api.patch('/users/me', { name: name.trim(), phone: phone.trim() });
+      useAuthStore.setState({ user: data.user });
+      toast.success('Profile updated successfully');
+      setIsEditing(false);
+    } finally { setSaving(false); }
   };
 
   const handlePasswordChange = async () => {
@@ -73,7 +89,7 @@ export function ProfileView({ role }: ProfileViewProps) {
           isEditing ? (
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
-              <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 text-white">
+              <Button disabled={saving} onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 text-white">
                 <Save className="w-4 h-4 mr-2" /> Save Profile
               </Button>
             </div>
@@ -167,20 +183,24 @@ export function ProfileView({ role }: ProfileViewProps) {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2 col-span-2">
                         <Label htmlFor="full-name">Full Name</Label>
-                        <Input id="full-name" defaultValue={user?.name || ''} className="bg-slate-50 dark:bg-slate-900/50" />
+                        <Input id="full-name" value={name} disabled={!isEditing} onChange={e => setName(e.target.value)} className="bg-slate-50 dark:bg-slate-900/50" />
+                      </div>
+                      <div className="space-y-2 col-span-2">
+                        <Label htmlFor="profile-phone">Phone Number</Label>
+                        <Input id="profile-phone" value={phone} disabled={!isEditing} onChange={e => setPhone(e.target.value)} className="bg-slate-50 dark:bg-slate-900/50" />
                       </div>
                       <div className="space-y-2 col-span-2">
                         <Label htmlFor="email">Email Address</Label>
                         <Input id="email" type="email" defaultValue={user?.email || ''} readOnly className="bg-slate-100 dark:bg-slate-900 cursor-not-allowed" />
                       </div>
                     </div>
-                    <Button className="bg-blue-600 hover:bg-blue-700 text-white mt-4" onClick={() => toast.success('Profile updated successfully')}><Save className="mr-2 h-4 w-4" /> Save Changes</Button>
+                    <Button disabled={!isEditing || saving} className="bg-blue-600 hover:bg-blue-700 text-white mt-4" onClick={handleSave}><Save className="mr-2 h-4 w-4" /> Save Changes</Button>
                   </CardContent>
                 </Card>
               </TabsContent>
 
               <TabsContent value="security" className="mt-0 outline-none space-y-6">
-                <Card className="border-slate-200 dark:border-slate-800 shadow-sm">
+                <Card className="border-slate-200 dark:border-slate-800 shadow-sm hidden">
                   <CardHeader className="border-b border-slate-100 dark:border-slate-800 pb-4">
                     <CardTitle>Change Password</CardTitle>
                     <CardDescription>Ensure your account is using a long, random password to stay secure.</CardDescription>

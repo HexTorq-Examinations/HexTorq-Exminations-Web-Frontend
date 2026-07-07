@@ -195,7 +195,7 @@ export default function StudentDashboard() {
                   <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">System Check</span>
                 </div>
               </Link>
-              <Link href="#">
+              <Link href="/student/instructions">
                 <div className="bg-white dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center gap-2 hover:border-blue-500 hover:shadow-sm transition-all cursor-pointer group text-center h-full">
                   <div className="p-2 bg-amber-50 text-amber-600 rounded-full group-hover:scale-110 transition-transform">
                     <FileText className="w-5 h-5" />

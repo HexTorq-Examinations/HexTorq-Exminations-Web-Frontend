@@ -12,6 +12,7 @@ const sidebarItems = [
   { name: 'My Results', href: '/student/results', icon: BarChart2 },
   { name: 'Messages', href: '/student/messages', icon: MessageSquare },
   { name: 'Notifications', href: '/student/notifications', icon: Bell },
+  { name: 'Instructions', href: '/student/instructions', icon: FileText },
   { name: 'Profile', href: '/student/profile', icon: UserIcon },
 ];
 

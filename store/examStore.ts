@@ -19,6 +19,7 @@ export interface ExamHistoryEntry {
   examTitle?: string;
   examSubject?: string;
   totalMarks?: number;
+  isTestExam?: boolean;
   status: 'COMPLETED' | 'TERMINATED';
   // Score is only ever non-null once the Admin has published the Result for this exam;
   // resultStatus tells the UI which case it is so it never guesses.

@@ -87,7 +87,7 @@ export function ResultsView({ role }: ResultsViewProps) {
   const hasGrades = pieData.some((d) => d.value > 0);
 
   const handlePublishAll = () => {
-    results.filter(r => r.status !== 'Published').forEach(r => {
+    results.filter(r => r.status !== 'Published' && r.canPublish).forEach(r => {
       if (r.id) publishResult(r.id);
     });
   };
@@ -319,9 +319,10 @@ export function ResultsView({ role }: ResultsViewProps) {
                           size="sm" 
                           className="bg-emerald-600 hover:bg-emerald-700 text-white"
                           onClick={() => publishResult(result.id!)}
-                          disabled={isLoading}
+                          disabled={isLoading || !result.canPublish}
+                          title={result.publishBlockedReason || 'Publish result'}
                         >
-                          <Share2 className="w-4 h-4 mr-1.5" /> Publish
+                          <Share2 className="w-4 h-4 mr-1.5" /> {result.canPublish ? 'Publish' : 'Exam not ended'}
                         </Button>
                       ) : null}
                       </div>
