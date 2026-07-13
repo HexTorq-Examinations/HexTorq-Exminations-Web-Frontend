@@ -4,7 +4,12 @@ import { useEffect, useCallback } from 'react';
 import { useExamStore } from '@/store/examStore';
 import { toast } from 'sonner';
 
-export const useProctoring = () => {
+interface ProctoringOptions {
+  strictFullscreen?: boolean;
+  disableClipboard?: boolean;
+}
+
+export const useProctoring = ({ strictFullscreen = true, disableClipboard = true }: ProctoringOptions = {}) => {
   const { status, recordViolation, violations, maxViolations, setIsPaused } = useExamStore();
 
   const handleVisibilityChange = useCallback(() => {
@@ -28,14 +33,16 @@ export const useProctoring = () => {
   }, [recordViolation, setIsPaused]);
 
   const handleFullscreenChange = useCallback(() => {
+    if (!strictFullscreen) return;
     if (!document.fullscreenElement) {
       recordViolation('FULLSCREEN_EXIT', 'Candidate exited fullscreen mode.');
       setIsPaused(true);
       toast.error('Warning: You exited fullscreen mode. Please return immediately.');
     }
-  }, [recordViolation, setIsPaused]);
+  }, [strictFullscreen, recordViolation, setIsPaused]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (!disableClipboard) return;
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
     const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
 
@@ -54,7 +61,7 @@ export const useProctoring = () => {
       toast.error('Developer tools are disabled.');
       return;
     }
-  }, [recordViolation]);
+  }, [disableClipboard, recordViolation]);
 
   const handleBeforeUnload = useCallback((e: BeforeUnloadEvent) => {
     if (status === 'IN_PROGRESS') {
@@ -64,16 +71,19 @@ export const useProctoring = () => {
   }, [status]);
 
   const handleContextMenu = useCallback((e: MouseEvent) => {
+    if (!disableClipboard) return;
     e.preventDefault();
-  }, []);
+  }, [disableClipboard]);
 
   const handleDragDrop = useCallback((e: Event) => {
+    if (!disableClipboard) return;
     e.preventDefault();
-  }, []);
+  }, [disableClipboard]);
 
   const handleSelectStart = useCallback((e: Event) => {
+    if (!disableClipboard) return;
     e.preventDefault();
-  }, []);
+  }, [disableClipboard]);
 
   const handlePopState = useCallback((e: PopStateEvent) => {
     window.history.pushState(null, '', window.location.href);
@@ -113,7 +123,7 @@ export const useProctoring = () => {
   // Request fullscreen utility
   const requestFullscreen = async () => {
     try {
-      if (!document.fullscreenElement) {
+      if (strictFullscreen && !document.fullscreenElement) {
         await document.documentElement.requestFullscreen();
       }
     } catch (err) {

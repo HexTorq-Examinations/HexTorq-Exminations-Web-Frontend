@@ -20,6 +20,11 @@ interface ExamQuestion {
   options: string[];
 }
 
+interface RuntimeControls {
+  strictFullscreen: boolean;
+  disableClipboard: boolean;
+}
+
 function SecureExamInterface() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -29,7 +34,8 @@ function SecureExamInterface() {
     violations, clearSession, isPaused, setIsPaused, isOnline, unsyncedQuestionIds,
     unsyncedViolationIds, pendingSubmitStatus, submissionReceipt, calculatorEnabled, lastSyncError, flushPending,
   } = useExamStore();
-  const { violationsCount, maxViolations, requestFullscreen, hasExceededViolations, isTerminated } = useProctoring();
+  const [runtimeControls, setRuntimeControls] = useState<RuntimeControls>({ strictFullscreen: true, disableClipboard: true });
+  const { violationsCount, maxViolations, hasExceededViolations, isTerminated } = useProctoring(runtimeControls);
   const pendingSyncCount = unsyncedQuestionIds.length + unsyncedViolationIds.length + (pendingSubmitStatus ? 1 : 0);
 
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
@@ -71,6 +77,10 @@ function SecureExamInterface() {
           : [];
 
         setQuestions(loadedQuestions);
+        setRuntimeControls({
+          strictFullscreen: data?.strictFullscreen !== false,
+          disableClipboard: data?.disableClipboard !== false,
+        });
         setCurrentQuestionIdx(0);
         if (loadedQuestions.length === 0) {
           setExamLoadError('This exam does not have any available questions. Please contact your exam administrator.');
@@ -90,7 +100,7 @@ function SecureExamInterface() {
 
   const handleStartExam = async () => {
     try {
-      if (!document.fullscreenElement) {
+      if (runtimeControls.strictFullscreen && !document.fullscreenElement) {
         await document.documentElement.requestFullscreen();
       }
       const startedAttempt = await startExam(currentExamId);
@@ -190,11 +200,13 @@ function SecureExamInterface() {
           </div>
           <h2 className="text-3xl font-bold mb-4">Secure Exam Mode</h2>
           <p className="text-slate-300 mb-8 text-lg">
-            This examination requires a secure fullscreen environment. By clicking "Start Exam", your browser will enter fullscreen mode. Exiting fullscreen or switching tabs will result in a security violation.
+            {runtimeControls.strictFullscreen
+              ? 'This examination requires a secure fullscreen environment. By clicking "Start Exam", your browser will enter fullscreen mode. Exiting fullscreen or switching tabs will result in a security violation.'
+              : 'This examination uses secure monitoring rules. Switching tabs or leaving the exam window will result in a security violation.'}
           </p>
           <div className="space-y-4 text-left bg-slate-900 p-4 rounded-lg mb-8 text-sm text-slate-400">
-            <p className="flex items-center gap-2"><Monitor className="w-4 h-4 text-emerald-400" /> Fullscreen mode enforced</p>
-            <p className="flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-amber-400" /> Shortcuts and right-click disabled</p>
+            {runtimeControls.strictFullscreen && <p className="flex items-center gap-2"><Monitor className="w-4 h-4 text-emerald-400" /> Fullscreen mode enforced</p>}
+            {runtimeControls.disableClipboard && <p className="flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-amber-400" /> Shortcuts and right-click disabled</p>}
           </div>
           <Button size="lg" className="w-full bg-blue-600 hover:bg-blue-700 text-white text-lg h-14 font-bold" onClick={handleStartExam}>
             Start Exam
@@ -214,6 +226,11 @@ function SecureExamInterface() {
               ? 'Your exam was automatically submitted due to exceeding the maximum allowed security violations.'
               : 'Your exam has been successfully submitted.'}
           </p>
+          {status === 'TERMINATED' && (
+            <p className="mb-6 text-sm text-slate-500">
+              This attempt cannot be restarted. Return to your exam list to review other scheduled exams or contact your administrator if you need a reset.
+            </p>
+          )}
           {status === 'TERMINATED' && violations.length > 0 && (
             <div className="mb-6 max-h-48 overflow-y-auto rounded-lg border border-amber-200 bg-amber-50 p-3 text-left">
               <p className="mb-2 font-semibold text-amber-900">Violations recorded: {violations.length}</p>
@@ -248,7 +265,7 @@ function SecureExamInterface() {
                 disabled={!!pendingSubmitStatus}
                 onClick={() => { clearSession(); router.push('/student/active-exams'); }}
               >
-                {pendingSubmitStatus ? 'Waiting for sync before restart...' : 'Restart Mock Exam'}
+                {pendingSubmitStatus ? 'Waiting for sync before leaving...' : 'Back to Exam List'}
               </Button>
             )}
           </div>
@@ -278,7 +295,7 @@ function SecureExamInterface() {
           <span className="font-bold text-sm tracking-wide sm:hidden">EA</span>
           <div className="hidden md:block h-4 w-px bg-white/20"></div>
           <div className="hidden md:flex items-center gap-4 text-sm font-medium">
-            <span className="flex items-center gap-1.5"><Monitor className="w-4 h-4 text-green-400" /> Fullscreen</span>
+            {runtimeControls.strictFullscreen && <span className="flex items-center gap-1.5"><Monitor className="w-4 h-4 text-green-400" /> Fullscreen</span>}
             <span className={`flex items-center gap-1.5 ${isOnline ? 'text-green-400' : 'text-red-400'}`}>
               {!isOnline ? (
                 <>
@@ -499,7 +516,9 @@ function SecureExamInterface() {
                   {violationsCount === maxViolations - 1 && <span className="block text-sm mt-1">FINAL WARNING</span>}
                 </div>
                 <p className="text-slate-400">
-                  You must return to fullscreen mode to continue your exam. Do not leave the exam window.
+                  {runtimeControls.strictFullscreen
+                    ? 'You must return to fullscreen mode to continue your exam. Do not leave the exam window.'
+                    : 'Return to the exam window to continue. Do not leave the exam window.'}
                 </p>
                 <div className="pt-4 flex flex-col gap-3">
                   <Button
@@ -507,14 +526,16 @@ function SecureExamInterface() {
                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-14 text-lg"
                     onClick={async () => {
                       try {
-                        await document.documentElement.requestFullscreen();
+                        if (runtimeControls.strictFullscreen) {
+                          await document.documentElement.requestFullscreen();
+                        }
                         setIsPaused(false);
                       } catch (err) {
                         // Stay paused if failed
                       }
                     }}
                   >
-                    Return to Fullscreen
+                    {runtimeControls.strictFullscreen ? 'Return to Fullscreen' : 'Resume Exam'}
                   </Button>
                   <Button
                     variant="ghost"

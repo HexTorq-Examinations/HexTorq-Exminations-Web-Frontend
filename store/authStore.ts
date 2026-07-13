@@ -34,6 +34,8 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: true,
             isLoading: false,
           });
+          const { useExamStore } = await import('@/store/examStore');
+          useExamStore.getState().flushPending().catch(() => {});
         } catch (error: any) {
           set({
             error: error.message || 'Login failed',

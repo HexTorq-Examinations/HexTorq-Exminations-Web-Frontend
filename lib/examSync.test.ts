@@ -17,8 +17,8 @@ describe('sync failure classification', () => {
     expect(classifySyncFailure({ httpStatus: 503 })).toBe('retryable');
     expect(classifySyncFailure({ httpStatus: 429 })).toBe('retryable');
     expect(classifySyncFailure({ httpStatus: 409 })).toBe('reconcile');
+    expect(classifySyncFailure({ httpStatus: 401 })).toBe('auth');
     expect(classifySyncFailure({ httpStatus: 400 })).toBe('permanent');
-    expect(classifySyncFailure({ httpStatus: 401 })).toBe('permanent');
   });
 });
 

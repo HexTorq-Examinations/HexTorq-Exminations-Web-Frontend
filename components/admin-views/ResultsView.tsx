@@ -53,7 +53,18 @@ interface ResultsAnalytics {
 }
 
 interface AttemptSummary { id: string; studentName: string; registerNumber?: string; status: string; score: number; violationsCount: number; }
-interface AttemptDetail extends AttemptSummary { exam: { title: string; totalMarks: number }; student: { name: string; registerNumber?: string }; violations: { type: string; description: string; timestamp?: number }[]; questions: { id: string; text: string; options: string[]; correctAnswer: string; selectedAnswer?: string; marks: number }[]; }
+interface AttemptDetail extends AttemptSummary {
+  exam: { title: string; totalMarks: number };
+  student: { name: string; registerNumber?: string };
+  violations: { type: string; description: string; timestamp?: number }[];
+  questions: { id: string; text: string; options: string[]; correctAnswer: string; selectedAnswer?: string; marks: number }[];
+  manuallyEvaluated?: boolean;
+  evaluationReason?: string | null;
+  startedAt?: string;
+  expiresAt?: string | null;
+  endedAt?: string | null;
+  actions?: { id: string; action: string; reason: string; createdAt: string }[];
+}
 
 export function ResultsView({ role }: ResultsViewProps) {
   const isSuperAdmin = role === 'super-admin';
@@ -120,6 +131,7 @@ export function ResultsView({ role }: ResultsViewProps) {
       await api.post(`/results/attempts/${attemptDetail.id}/${action}`, { reason });
     }
     await openAttempt(attemptDetail.id);
+    await fetchResults();
   };
 
   const download = async (url: string, filename: string) => {
@@ -360,12 +372,39 @@ export function ResultsView({ role }: ResultsViewProps) {
         <DialogContent className="!h-[88vh] !w-[80vw] !max-w-[80vw] grid-rows-[auto_minmax(0,1fr)] overflow-hidden p-0 gap-0">
           <div className="flex items-start justify-between border-b px-6 py-4 pr-14">
             <DialogHeader><DialogTitle>{attemptDetail?.student.name} — {attemptDetail?.exam.title}</DialogTitle><p className="text-xs text-slate-500">Attempt {attemptDetail?.id}</p></DialogHeader>
-            <Button size="sm" onClick={() => download(`/results/attempts/${attemptDetail?.id}/response.pdf`, `${attemptDetail?.student.registerNumber || 'student'}-response.pdf`)}><Download className="mr-2 h-4 w-4" />Download response PDF</Button>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button size="sm" variant="outline" onClick={() => actionWithReason('evaluate')}>Manual Score</Button>
+              <Button size="sm" variant="outline" onClick={() => actionWithReason('regrade')}>Regrade</Button>
+              <Button size="sm" variant="outline" disabled={attemptDetail?.status !== 'IN_PROGRESS'} onClick={() => actionWithReason('extend')}>Extend</Button>
+              <Button size="sm" variant="outline" disabled={!attemptDetail || !['COMPLETED', 'TERMINATED'].includes(attemptDetail.status)} onClick={() => actionWithReason('reset')}>Reset</Button>
+              <Button size="sm" onClick={() => download(`/results/attempts/${attemptDetail?.id}/response.pdf`, `${attemptDetail?.student.registerNumber || 'student'}-response.pdf`)}><Download className="mr-2 h-4 w-4" />Download response PDF</Button>
+            </div>
           </div>
           <div className="grid min-h-0 flex-1 grid-cols-[230px_1fr] overflow-hidden">
             <aside className="border-r bg-slate-50 p-5 text-sm">
               <p className="text-xs uppercase tracking-wide text-slate-500">Score</p><p className="mt-1 text-2xl font-bold">{attemptDetail?.score} / {attemptDetail?.exam.totalMarks}</p>
-              <div className="mt-5 space-y-3 text-slate-600"><p><b>Status:</b> {attemptDetail?.status}</p><p><b>Register no:</b> {attemptDetail?.student.registerNumber || '—'}</p><p><b>Questions:</b> {attemptDetail?.questions.length || 0}</p><p><b>Violations:</b> {attemptDetail?.violations?.length || 0}</p></div>
+              <div className="mt-5 space-y-3 text-slate-600">
+                <p><b>Status:</b> {attemptDetail?.status}</p>
+                <p><b>Register no:</b> {attemptDetail?.student.registerNumber || '—'}</p>
+                <p><b>Questions:</b> {attemptDetail?.questions.length || 0}</p>
+                <p><b>Violations:</b> {attemptDetail?.violations?.length || 0}</p>
+                <p><b>Manual evaluation:</b> {attemptDetail?.manuallyEvaluated ? 'Yes' : 'No'}</p>
+                {attemptDetail?.evaluationReason && <p><b>Evaluation reason:</b> {attemptDetail.evaluationReason}</p>}
+              </div>
+              {!!attemptDetail?.actions?.length && (
+                <div className="mt-6 border-t pt-4">
+                  <p className="mb-2 font-semibold">Admin actions</p>
+                  <div className="space-y-2 text-xs text-slate-600">
+                    {attemptDetail.actions.slice(0, 5).map((action) => (
+                      <div key={action.id} className="rounded-lg border bg-white p-2">
+                        <p className="font-semibold text-slate-800">{action.action.replaceAll('_', ' ')}</p>
+                        <p className="mt-1">{action.reason}</p>
+                        <p className="mt-1 text-slate-500">{new Date(action.createdAt).toLocaleString()}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="mt-6 border-t pt-4"><p className="mb-2 font-semibold">Legend</p><p className="text-emerald-700">Green: correct selection</p><p className="text-red-700">Red: incorrect selection</p><p className="text-slate-500">Grey: unanswered</p></div>
             </aside>
             <main className="overflow-y-auto p-6">

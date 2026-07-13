@@ -52,6 +52,7 @@ const scheduleRetry = () => {
   retryTimer = setTimeout(() => { retryTimer = null; useExamStore.getState().flushPending(); }, delay);
 };
 const errorMessage = (error: unknown) => error instanceof Error ? error.message : 'Synchronization failed';
+const authExpiredMessage = 'Your session expired before the saved exam progress could sync. Sign in again on this device to resume synchronization.';
 
 interface ExamState {
   examId: string | null;
@@ -274,6 +275,10 @@ export const useExamStore = create<ExamState>()(
               set({ isOnline: true });
             } catch (error) {
               const kind = classifySyncFailure(error);
+              if (kind === 'auth') {
+                set({ isOnline: true, lastSyncError: authExpiredMessage });
+                return;
+              }
               if (kind === 'network' || kind === 'retryable') {
                 set({ isOnline: kind !== 'network', lastSyncError: kind === 'retryable' ? `Server temporarily unavailable: ${errorMessage(error)}` : null });
                 scheduleRetry();
@@ -302,6 +307,10 @@ export const useExamStore = create<ExamState>()(
               set({ isOnline: true });
             } catch (error) {
               const kind = classifySyncFailure(error);
+              if (kind === 'auth') {
+                set({ isOnline: true, lastSyncError: authExpiredMessage });
+                return;
+              }
               if (kind === 'network' || kind === 'retryable') {
                 set({ isOnline: kind !== 'network', lastSyncError: kind === 'retryable' ? `Server temporarily unavailable: ${errorMessage(error)}` : null });
                 scheduleRetry();
@@ -322,6 +331,10 @@ export const useExamStore = create<ExamState>()(
               await get().fetchExamHistory();
             } catch (error) {
               const kind = classifySyncFailure(error);
+              if (kind === 'auth') {
+                set({ isOnline: true, lastSyncError: authExpiredMessage });
+                return;
+              }
               if (kind === 'network' || kind === 'retryable') {
                 set({ isOnline: kind !== 'network', lastSyncError: kind === 'retryable' ? `Server temporarily unavailable: ${errorMessage(error)}` : null });
                 scheduleRetry();
