@@ -31,7 +31,7 @@ export const simplifyImportedDateOption = (value: unknown) => {
   if (year === 1899 && month === 12 && day === 30) {
     return `${hour}:${String(minute + (second >= 30 ? 1 : 0)).padStart(2, '0')}`;
   }
-  return `${month}/${day}`;
+  return `${month}-${day}`;
 };
 
 export const sanitizeQuestionOptions = <T extends { options?: unknown[] }>(question: T): T & { options: string[] } => ({
