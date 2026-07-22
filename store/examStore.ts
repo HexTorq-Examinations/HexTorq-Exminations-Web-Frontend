@@ -41,7 +41,21 @@ export interface SubmissionReceipt {
   serverConfirmedAt: string;
 }
 
+interface ActiveAttemptSnapshot {
+  serverNow: string;
+  startedAt: string;
+  expiresAt: string;
+  answers?: Record<string, string>;
+  violations?: Violation[];
+  maxViolations?: number;
+  calculatorEnabled?: boolean;
+}
+
 const genId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+const normalizeViolation = (violation: Violation): Violation => ({
+  ...violation,
+  clientViolationId: violation.clientViolationId || violation.id,
+});
 let retryTimer: ReturnType<typeof setTimeout> | null = null;
 let retryAttempt = 0;
 const resetRetry = () => { if (retryTimer) clearTimeout(retryTimer); retryTimer = null; retryAttempt = 0; };
@@ -83,6 +97,7 @@ interface ExamState {
 
   // Actions
   startExam: (examId: string) => Promise<{ durationSeconds: number; questions: AttemptQuestion[] }>;
+  hydrateActiveAttempt: (examId: string, snapshot: ActiveAttemptSnapshot) => void;
   refreshAttemptStatus: () => Promise<void>;
   endExam: (status?: ExamStatus) => void;
   setIsPaused: (paused: boolean) => void;
@@ -133,7 +148,7 @@ export const useExamStore = create<ExamState>()(
           expiresAt,
           serverTimeOffsetMs,
           timeRemaining: serverRemainingSeconds(expiresAt, serverTimeOffsetMs),
-          violations: (data.violations || []).map((v: any) => ({ ...v, clientViolationId: v.clientViolationId || v.id })),
+          violations: ((data.violations || []) as Violation[]).map(normalizeViolation),
           maxViolations: data.maxViolations || 5,
           calculatorEnabled: !!data.calculatorEnabled,
           answers: data.answers || {},
@@ -148,6 +163,34 @@ export const useExamStore = create<ExamState>()(
           durationSeconds: data.durationSeconds,
           questions: Array.isArray(data.questions) ? data.questions : [],
         };
+      },
+
+      hydrateActiveAttempt: (examId: string, snapshot: ActiveAttemptSnapshot) => {
+        if (!snapshot.serverNow || !snapshot.startedAt || !snapshot.expiresAt) return;
+        const serverTimeOffsetMs = new Date(snapshot.serverNow).getTime() - Date.now();
+        const expiresAt = new Date(snapshot.expiresAt).getTime();
+        set((state) => {
+          const keepLocalUnsynced = state.examId === examId && state.unsyncedQuestionIds.length > 0;
+          const unsyncedAnswers = keepLocalUnsynced
+            ? Object.fromEntries(state.unsyncedQuestionIds.map((questionId) => [questionId, state.answers[questionId]]).filter(([, answer]) => answer))
+            : {};
+          return {
+            examId,
+            status: 'IN_PROGRESS',
+            startTime: new Date(snapshot.startedAt).getTime(),
+            expiresAt,
+            serverTimeOffsetMs,
+            timeRemaining: serverRemainingSeconds(expiresAt, serverTimeOffsetMs),
+            violations: (snapshot.violations || []).map(normalizeViolation),
+            maxViolations: snapshot.maxViolations || 5,
+            calculatorEnabled: !!snapshot.calculatorEnabled,
+            answers: { ...(snapshot.answers || {}), ...unsyncedAnswers },
+            isPaused: false,
+            pendingSubmitStatus: null,
+            submissionReceipt: null,
+            lastSyncError: null,
+          };
+        });
       },
 
       refreshAttemptStatus: async () => {

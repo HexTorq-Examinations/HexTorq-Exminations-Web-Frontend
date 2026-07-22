@@ -32,7 +32,7 @@ function SecureExamInterface() {
   const {
     status, examId: storeExamId, startExam, refreshAttemptStatus, endExam, timeRemaining, tickTimer, answers, saveAnswer,
     violations, clearSession, isPaused, setIsPaused, isOnline, unsyncedQuestionIds,
-    unsyncedViolationIds, pendingSubmitStatus, submissionReceipt, calculatorEnabled, lastSyncError, flushPending,
+    unsyncedViolationIds, pendingSubmitStatus, submissionReceipt, calculatorEnabled, lastSyncError, flushPending, hydrateActiveAttempt,
   } = useExamStore();
   const [runtimeControls, setRuntimeControls] = useState<RuntimeControls>({ strictFullscreen: true, disableClipboard: true });
   const { violationsCount, maxViolations, hasExceededViolations, isTerminated } = useProctoring(runtimeControls);
@@ -81,6 +81,17 @@ function SecureExamInterface() {
           strictFullscreen: data?.strictFullscreen !== false,
           disableClipboard: data?.disableClipboard !== false,
         });
+        if (data?.hasActiveAttempt && data?.startedAt && data?.expiresAt) {
+          hydrateActiveAttempt(currentExamId, {
+            serverNow: data.serverNow,
+            startedAt: data.startedAt,
+            expiresAt: data.expiresAt,
+            answers: data.answers || {},
+            violations: data.violations || [],
+            maxViolations: data.maxViolations,
+            calculatorEnabled: data.calculatorEnabled,
+          });
+        }
         setCurrentQuestionIdx(0);
         if (loadedQuestions.length === 0) {
           setExamLoadError('This exam does not have any available questions. Please contact your exam administrator.');
@@ -96,7 +107,7 @@ function SecureExamInterface() {
         if (!cancelled) setIsLoadingExam(false);
       });
     return () => { cancelled = true; };
-  }, [currentExamId, examLoadAttempt]);
+  }, [currentExamId, examLoadAttempt, hydrateActiveAttempt]);
 
   const handleStartExam = async () => {
     try {
