@@ -3,7 +3,7 @@
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, Clock, Bell, FileText, ChevronRight, MonitorPlay } from 'lucide-react';
+import { Calendar, Clock, Bell, FileText, ChevronRight, MonitorPlay, PlayCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
@@ -32,12 +32,44 @@ interface NotificationItem {
   unread: boolean;
 }
 
+interface AttemptStatus {
+  hasActiveAttempt: boolean;
+  answeredCount: number;
+  totalQuestions: number;
+}
+
+interface StudentExamCard {
+  id: string;
+  mappingId: string;
+  title: string;
+  subject: string;
+  code: string;
+  dateObj: Date;
+  startDateTime: Date;
+  date: string;
+  time: string;
+  endTime: string;
+  duration: string;
+  marks: number;
+  questions: number;
+  answeredCount: number;
+  remainingQuestions: number;
+  progress: number;
+  assignedBy: string;
+  status: 'active' | 'upcoming';
+  maxViolations: number;
+  calculatorEnabled: boolean;
+  isTestExam: boolean;
+  hasActiveAttempt: boolean;
+}
+
 export default function StudentUpcomingExams() {
   const router = useRouter();
   const [instructionsOpen, setInstructionsOpen] = useState(false);
-  const [selectedExam, setSelectedExam] = useState<any>(null);
+  const [selectedExam, setSelectedExam] = useState<StudentExamCard | null>(null);
   const { myMappings, examHistory, fetchMyMappings, fetchExamHistory } = useExamStore();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [attemptStatus, setAttemptStatus] = useState<Record<string, AttemptStatus>>({});
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(() => new Date());
   const [now, setNow] = useState(() => new Date());
@@ -54,37 +86,69 @@ export default function StudentUpcomingExams() {
     return () => clearInterval(interval);
   }, []);
 
-  const upcomingExams = myMappings
-    .filter(m => getTemporalStatus(m, now) === 'upcoming' && !hasCompletedMapping(m, examHistory))
-    .map(m => {
-      const startDateTime = new Date(m.startAt || `${m.date}T${m.startTime}:00`);
-      return {
-        id: m.examId,
-        mappingId: m.id,
-        title: m.examTitle || 'Exam',
-        subject: m.examSubject || '',
-        code: `EXM-${(m.examId || '').toUpperCase()}`,
-        dateObj: new Date(m.date),
-        startDateTime,
-        date: new Date(m.date).toLocaleDateString(),
-        time: m.startTime,
-        duration: m.examDuration ? `${m.examDuration} mins` : `${m.startTime} - ${m.endTime}`,
-        marks: m.examTotalMarks || 0,
-        questions: m.examQuestionCount || 0,
-        assignedBy: 'System Admin',
-        status: m.status,
-        maxViolations: m.examMaxViolations || 5,
-        calculatorEnabled: !!m.examCalculatorEnabled,
-        isTestExam: !!m.examIsTest,
-      };
-    })
-    .sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
+  const activeMappings = myMappings.filter(m => getTemporalStatus(m, now) === 'active' && !hasCompletedMapping(m, examHistory));
+  const upcomingMappings = myMappings.filter(m => getTemporalStatus(m, now) === 'upcoming' && !hasCompletedMapping(m, examHistory));
+
+  const toExamCard = (m: typeof myMappings[number], temporalStatus: 'active' | 'upcoming'): StudentExamCard => {
+    const startDateTime = new Date(m.startAt || `${m.date}T${m.startTime}:00`);
+    const progress = attemptStatus[m.examId];
+    const totalQuestions = progress?.totalQuestions ?? m.examQuestionCount ?? 0;
+    const answeredCount = progress?.answeredCount ?? 0;
+    return {
+      id: m.examId,
+      mappingId: m.id || m.examId,
+      title: m.examTitle || 'Exam',
+      subject: m.examSubject || '',
+      code: `EXM-${(m.examId || '').toUpperCase()}`,
+      dateObj: new Date(m.date),
+      startDateTime,
+      date: new Date(m.date).toLocaleDateString(),
+      time: m.startTime,
+      endTime: m.endTime || '',
+      duration: m.examDuration ? `${m.examDuration} mins` : `${m.startTime} - ${m.endTime}`,
+      marks: m.examTotalMarks || 0,
+      questions: totalQuestions,
+      answeredCount,
+      remainingQuestions: Math.max(0, totalQuestions - answeredCount),
+      progress: totalQuestions > 0 ? Math.round((answeredCount / totalQuestions) * 100) : 0,
+      assignedBy: 'System Admin',
+      status: temporalStatus,
+      maxViolations: m.examMaxViolations || 5,
+      calculatorEnabled: !!m.examCalculatorEnabled,
+      isTestExam: !!m.examIsTest,
+      hasActiveAttempt: !!progress?.hasActiveAttempt,
+    };
+  };
+
+  const activeExams = activeMappings.map((m) => toExamCard(m, 'active')).sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
+  const upcomingExams = upcomingMappings.map((m) => toExamCard(m, 'upcoming')).sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
+  const scheduledExams = [...activeExams, ...upcomingExams];
+
+  const activeExamIds = activeMappings.map((m) => m.examId).sort().join('|');
+  useEffect(() => {
+    let cancelled = false;
+    const ids = activeExamIds ? activeExamIds.split('|') : [];
+    if (ids.length === 0) {
+      return () => { cancelled = true; };
+    }
+    Promise.all(
+      ids.map((examId) =>
+        api.get(`/exams/${examId}/my-attempt`).then(({ data }) => [examId, data] as const)
+      )
+    ).then((entries) => {
+      if (!cancelled) setAttemptStatus(Object.fromEntries(entries));
+    }).catch(() => {
+      if (!cancelled) setAttemptStatus({});
+    });
+    return () => { cancelled = true; };
+  }, [activeExamIds]);
 
   const nextExam = upcomingExams[0];
   const unreadCount = notifications.filter((n) => n.unread).length;
   const daysRemaining = nextExam ? Math.max(0, differenceInCalendarDays(nextExam.dateObj, now)) : 0;
 
   const metrics = [
+    { title: 'Active Now', value: activeExams.length.toString(), icon: PlayCircle, color: 'text-emerald-600', bg: 'bg-emerald-100' },
     { title: 'Total Upcoming Exams', value: upcomingExams.length.toString(), icon: FileText, color: 'text-blue-600', bg: 'bg-blue-100' },
     { title: 'Next Exam Date', value: nextExam ? format(nextExam.dateObj, 'MMM d') : '—', icon: Calendar, color: 'text-emerald-600', bg: 'bg-emerald-100' },
     { title: 'Days Remaining', value: nextExam ? daysRemaining.toString() : '—', icon: Clock, color: 'text-purple-600', bg: 'bg-purple-100' },
@@ -97,8 +161,8 @@ export default function StudentUpcomingExams() {
     return eachDayOfInterval({ start, end });
   }, [calendarMonth]);
 
-  const examDatesInMonth = upcomingExams.filter((e) => isSameMonth(e.dateObj, calendarMonth));
-  const selectedDateExams = upcomingExams.filter((e) => isSameDay(e.dateObj, selectedCalendarDate));
+  const examDatesInMonth = scheduledExams.filter((e) => isSameMonth(e.dateObj, calendarMonth));
+  const selectedDateExams = scheduledExams.filter((e) => isSameDay(e.dateObj, selectedCalendarDate));
 
   return (
     <div className="space-y-6 pb-10">
@@ -130,6 +194,42 @@ export default function StudentUpcomingExams() {
 
         {/* Main Content (70%) */}
         <div className="lg:col-span-8 space-y-6">
+          {activeExams.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Active now</h2>
+                <Badge className="border-0 bg-emerald-100 text-emerald-700">{activeExams.length} running</Badge>
+              </div>
+              {activeExams.map((exam) => (
+                <Card key={exam.id} className="border-emerald-200 bg-emerald-50/50 shadow-md dark:border-emerald-900 dark:bg-emerald-950/20">
+                  <CardContent className="p-6">
+                    <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+                      <div className="min-w-0">
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          <Badge className="border-0 bg-emerald-600 text-white">ACTIVE NOW</Badge>
+                          {exam.subject && <Badge className="border-0 bg-blue-100 text-blue-700">{exam.subject}</Badge>}
+                          {exam.isTestExam && <Badge className="border-0 bg-amber-100 text-amber-700">TEST EXAM</Badge>}
+                        </div>
+                        <h3 className="truncate text-2xl font-bold text-slate-900 dark:text-slate-100">{exam.title}</h3>
+                        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                          Window: {exam.time} - {exam.endTime} · Answered {exam.answeredCount}/{exam.questions}
+                        </p>
+                      </div>
+                      <div className="flex flex-col gap-2 sm:min-w-[220px]">
+                        <Button className="h-12 bg-emerald-600 text-base font-bold text-white hover:bg-emerald-700" onClick={() => router.push(`/exam?id=${exam.id}`)}>
+                          <PlayCircle className="mr-2 h-5 w-5" /> {exam.hasActiveAttempt ? 'Resume Exam' : 'Start Exam'}
+                        </Button>
+                        <Button variant="outline" onClick={() => router.push(`/student/system-check?examId=${exam.id}`)}>
+                          <MonitorPlay className="mr-2 h-4 w-4" /> System Check
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
           {upcomingExams.length === 0 ? (
             <Card className="border-slate-200 dark:border-slate-800 shadow-sm border-dashed text-center">
               <CardContent className="py-16">
@@ -137,36 +237,38 @@ export default function StudentUpcomingExams() {
                   <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                     <Calendar className="h-8 w-8 text-slate-400" />
                   </div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">No Upcoming Exams</h3>
-                  <p className="text-slate-500 max-w-sm">You don't have any scheduled examinations at the moment. Enjoy your free time!</p>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">{activeExams.length ? 'No Later Upcoming Exams' : 'No Upcoming Exams'}</h3>
+                  <p className="text-slate-500 max-w-sm">{activeExams.length ? 'Your current exam is shown above. Later scheduled exams will appear here.' : "You don't have any scheduled examinations at the moment. Enjoy your free time!"}</p>
                 </div>
               </CardContent>
             </Card>
           ) : (
-            upcomingExams.map((exam) => (
-              <Card key={exam.id} className="border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden group hover:border-blue-300 dark:hover:border-blue-800 transition-colors">
-                <div className="p-6">
-                  <div className="flex flex-col md:flex-row justify-between md:items-start gap-4">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        {exam.subject && <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-0">{exam.subject}</Badge>}
-                        {exam.isTestExam && <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-0">TEST EXAM</Badge>}
-                        <Badge variant="outline" className="text-slate-500 font-mono">{exam.code}</Badge>
+            <div className="space-y-6">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Scheduled next</h2>
+              {upcomingExams.map((exam) => (
+                <Card key={exam.id} className="border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden group hover:border-blue-300 dark:hover:border-blue-800 transition-colors">
+                  <div className="p-6">
+                    <div className="flex flex-col md:flex-row justify-between md:items-start gap-4">
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          {exam.subject && <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-0">{exam.subject}</Badge>}
+                          {exam.isTestExam && <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-0">TEST EXAM</Badge>}
+                          <Badge variant="outline" className="text-slate-500 font-mono">{exam.code}</Badge>
+                        </div>
+                        <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{exam.title}</h3>
+                        <p className="text-slate-500 mt-1">Assigned by {exam.assignedBy}</p>
                       </div>
-                      <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{exam.title}</h3>
-                      <p className="text-slate-500 mt-1">Assigned by {exam.assignedBy}</p>
+                      <div className="text-left md:text-right">
+                        <div className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center md:justify-end gap-2">
+                          <Calendar className="w-4 h-4 text-slate-400" />
+                          {exam.date}
+                        </div>
+                        <div className="text-slate-500 font-medium flex items-center md:justify-end gap-2 mt-1">
+                          <Clock className="w-4 h-4 text-slate-400" />
+                          {exam.time} ({exam.duration})
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-left md:text-right">
-                      <div className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center md:justify-end gap-2">
-                        <Calendar className="w-4 h-4 text-slate-400" />
-                        {exam.date}
-                      </div>
-                      <div className="text-slate-500 font-medium flex items-center md:justify-end gap-2 mt-1">
-                        <Clock className="w-4 h-4 text-slate-400" />
-                        {exam.time} ({exam.duration})
-                      </div>
-                    </div>
-                  </div>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 py-4 border-y border-slate-100 dark:border-slate-800">
                     <div>
@@ -189,25 +291,26 @@ export default function StudentUpcomingExams() {
                     </div>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row items-center gap-3 mt-6">
-                    <Button
-                      variant="outline"
-                      className="w-full sm:w-auto"
-                      onClick={() => { setSelectedExam(exam); setInstructionsOpen(true); }}
-                    >
-                      <FileText className="mr-2 h-4 w-4" /> Exam Instructions
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className="w-full sm:w-auto sm:ml-auto text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                      onClick={() => router.push(`/student/system-check?examId=${exam.id}`)}
-                    >
-                      <MonitorPlay className="mr-2 h-4 w-4" /> System Check
-                    </Button>
+                    <div className="flex flex-col sm:flex-row items-center gap-3 mt-6">
+                      <Button
+                        variant="outline"
+                        className="w-full sm:w-auto"
+                        onClick={() => { setSelectedExam(exam); setInstructionsOpen(true); }}
+                      >
+                        <FileText className="mr-2 h-4 w-4" /> Exam Instructions
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="w-full sm:w-auto sm:ml-auto text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        onClick={() => router.push(`/student/system-check?examId=${exam.id}`)}
+                      >
+                        <MonitorPlay className="mr-2 h-4 w-4" /> System Check
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </Card>
-            ))
+                </Card>
+              ))}
+            </div>
           )}
         </div>
 
@@ -256,7 +359,7 @@ export default function StudentUpcomingExams() {
                 <p className="mb-3 text-sm font-semibold">{format(selectedCalendarDate, 'EEEE, MMMM d')}</p>
                 {selectedDateExams.length ? <div className="space-y-2">{selectedDateExams.map(exam => (
                   <button key={exam.mappingId} type="button" onClick={() => { setSelectedExam(exam); setInstructionsOpen(true); }} className="w-full rounded-lg border border-blue-100 bg-blue-50 p-3 text-left hover:border-blue-300">
-                    <span className="flex items-center gap-2 font-semibold text-slate-900">{exam.title}{exam.isTestExam && <Badge className="bg-amber-100 text-amber-700">TEST</Badge>}</span>
+                    <span className="flex items-center gap-2 font-semibold text-slate-900">{exam.title}{exam.status === 'active' && <Badge className="bg-emerald-100 text-emerald-700">ACTIVE</Badge>}{exam.isTestExam && <Badge className="bg-amber-100 text-amber-700">TEST</Badge>}</span>
                     <span className="mt-1 block text-xs text-slate-600">{exam.time} · {exam.duration} · {exam.marks} marks</span>
                   </button>
                 ))}</div> : <p className="text-sm text-slate-500">No exams scheduled for this date.</p>}
