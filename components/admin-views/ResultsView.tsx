@@ -38,6 +38,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { SkeletonTable } from '@/components/common/SkeletonTable';
 import { api } from '@/lib/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { sanitizeQuestionOptions, simplifyImportedDateOption } from '@/lib/questionOptions';
 
 interface ResultsViewProps {
   role: 'admin' | 'super-admin';
@@ -111,7 +112,14 @@ export function ResultsView({ role }: ResultsViewProps) {
 
   const openAttempt = async (id: string) => {
     const { data } = await api.get(`/results/attempts/${id}`);
-    setAttemptDetail(data);
+    setAttemptDetail({
+      ...data,
+      questions: (data.questions || []).map((question: AttemptDetail['questions'][number]) => ({
+        ...sanitizeQuestionOptions(question),
+        correctAnswer: simplifyImportedDateOption(question.correctAnswer),
+        selectedAnswer: question.selectedAnswer ? simplifyImportedDateOption(question.selectedAnswer) : question.selectedAnswer,
+      })),
+    });
     setAttemptsOpen(false);
   };
 

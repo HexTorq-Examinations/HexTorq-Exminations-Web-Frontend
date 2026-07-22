@@ -33,6 +33,7 @@ import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { StudentExamPreview, type PreviewExam } from './StudentExamPreview';
+import { sanitizeQuestionOptions } from '@/lib/questionOptions';
 
 interface ExamsViewProps {
   role: 'admin' | 'super-admin';
@@ -107,13 +108,13 @@ export function ExamsView({ role }: ExamsViewProps) {
   const handlePreview = async (exam: Exam) => {
     if (!exam.id) return;
     const { data } = await api.get(`/exams/${exam.id}/preview`);
-    setPreview(data);
+    setPreview({ ...data, questions: (data.questions || []).map(sanitizeQuestionOptions) });
   };
 
   const handleStudentPreview = async (exam: Exam) => {
     if (!exam.id) return;
     const { data } = await api.get(`/exams/${exam.id}/preview`);
-    setStudentPreview(data);
+    setStudentPreview({ ...data, questions: (data.questions || []).map(sanitizeQuestionOptions) });
   };
 
   const handleManageQuestions = (exam: Exam) => {

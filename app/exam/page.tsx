@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { NetworkPing } from '@/components/common/NetworkPing';
 import { FloatingCalculator } from '@/components/common/FloatingCalculator';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { sanitizeQuestionOptions } from '@/lib/questionOptions';
 
 interface ExamQuestion {
   id: string;
@@ -76,7 +77,7 @@ function SecureExamInterface() {
             })
           : [];
 
-        setQuestions(loadedQuestions);
+        setQuestions(loadedQuestions.map(sanitizeQuestionOptions));
         setRuntimeControls({
           strictFullscreen: data?.strictFullscreen !== false,
           disableClipboard: data?.disableClipboard !== false,
@@ -116,7 +117,7 @@ function SecureExamInterface() {
       }
       const startedAttempt = await startExam(currentExamId);
       if (startedAttempt.questions.length > 0) {
-        setQuestions(startedAttempt.questions);
+        setQuestions(startedAttempt.questions.map(sanitizeQuestionOptions));
         setCurrentQuestionIdx(0);
       }
     } catch (err) {

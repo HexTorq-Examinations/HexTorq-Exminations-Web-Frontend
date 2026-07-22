@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { AlertTriangle, ChevronLeft, ChevronRight, Clock, Flag, ShieldCheck, X } from 'lucide-react';
+import { sanitizeQuestionOptions } from '@/lib/questionOptions';
 
 export interface PreviewExam {
   id?: string;
@@ -18,10 +19,15 @@ export function StudentExamPreview({ exam, onClose }: { exam: PreviewExam; onClo
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [flagged, setFlagged] = useState<Set<string>>(new Set());
-  const question = exam.questions[index];
+  const question = exam.questions[index] ? sanitizeQuestionOptions(exam.questions[index]) : undefined;
   const toggleFlag = () => setFlagged(current => {
+    if (!question) return current;
     const next = new Set(current);
-    next.has(question.id) ? next.delete(question.id) : next.add(question.id);
+    if (next.has(question.id)) {
+      next.delete(question.id);
+    } else {
+      next.add(question.id);
+    }
     return next;
   });
 
