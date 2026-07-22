@@ -49,6 +49,7 @@ function SecureExamInterface() {
   const [markedForReview, setMarkedForReview] = useState<Set<string>>(new Set());
   const [showCalculator, setShowCalculator] = useState(false);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [showPendingWarning, setShowPendingWarning] = useState(false);
 
   // Clear session if opening a different exam
   useEffect(() => {
@@ -167,6 +168,37 @@ function SecureExamInterface() {
   };
 
   const currentQuestion = questions[currentQuestionIdx];
+  const unansweredQuestions = questions
+    .map((question, index) => ({ question, number: index + 1 }))
+    .filter(({ question }) => !answers[question.id]);
+  const answeredCount = questions.length - unansweredQuestions.length;
+  const pendingQuestionNumbers = unansweredQuestions.map(({ number }) => number);
+  const pendingQuestionPreview = pendingQuestionNumbers.slice(0, 12).join(', ');
+  const hasMorePendingQuestions = pendingQuestionNumbers.length > 12;
+
+  const requestSubmitExam = () => {
+    if (unansweredQuestions.length > 0) {
+      setShowPendingWarning(true);
+      return;
+    }
+    setShowSubmitConfirm(true);
+  };
+
+  const handleNextOrSubmit = () => {
+    if (currentQuestionIdx === questions.length - 1) {
+      requestSubmitExam();
+      return;
+    }
+    setCurrentQuestionIdx(prev => Math.min(questions.length - 1, prev + 1));
+  };
+
+  const goToFirstPendingQuestion = () => {
+    const firstPending = unansweredQuestions[0];
+    if (firstPending) {
+      setCurrentQuestionIdx(firstPending.number - 1);
+    }
+    setShowPendingWarning(false);
+  };
 
   if (!currentExamId) {
     return (
@@ -341,7 +373,7 @@ function SecureExamInterface() {
           <div className="text-lg md:text-xl font-mono font-bold tracking-wider tabular-nums">
             <span role="timer" aria-live="polite" aria-label={`${timeRemaining} seconds remaining`}>{formatTime(timeRemaining)}</span>
           </div>
-          <Button variant="destructive" size="sm" onClick={() => setShowSubmitConfirm(true)} className="font-bold px-2 md:px-4 text-xs md:text-sm">
+          <Button variant="destructive" size="sm" onClick={requestSubmitExam} className="font-bold px-2 md:px-4 text-xs md:text-sm">
             Submit
           </Button>
         </div>
@@ -431,10 +463,9 @@ function SecureExamInterface() {
             <Button
               size="lg"
               className="bg-blue-600 hover:bg-blue-700 text-xs md:text-sm px-3 md:px-8"
-              onClick={() => setCurrentQuestionIdx(prev => Math.min(questions.length - 1, prev + 1))}
-              disabled={currentQuestionIdx === questions.length - 1}
+              onClick={handleNextOrSubmit}
             >
-              Save & Next <ChevronRight className="w-4 h-4 md:w-5 md:h-5 ml-1" />
+              {currentQuestionIdx === questions.length - 1 ? 'Save & Submit' : 'Save & Next'} <ChevronRight className="w-4 h-4 md:w-5 md:h-5 ml-1" />
             </Button>
           </div>
         </main>
@@ -471,11 +502,11 @@ function SecureExamInterface() {
           <div className="mt-auto space-y-3 text-sm font-medium text-slate-600 border-t pt-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2"><div className="w-4 h-4 bg-green-500 rounded-sm"></div> Answered</div>
-              <span>{Object.keys(answers).length}</span>
+              <span>{answeredCount}</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2"><div className="w-4 h-4 bg-white border border-slate-300 rounded-sm"></div> Not Answered</div>
-              <span>{questions.length - Object.keys(answers).length}</span>
+              <span>{unansweredQuestions.length}</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2"><div className="w-4 h-4 bg-amber-500 rounded-sm"></div> Marked</div>
@@ -492,11 +523,18 @@ function SecureExamInterface() {
         onOpenChange={setShowSubmitConfirm}
         title="Submit Exam"
         description={
-          questions.length - Object.keys(answers).length > 0
-            ? `You have ${questions.length - Object.keys(answers).length} unanswered question${questions.length - Object.keys(answers).length > 1 ? 's' : ''}. Once submitted, you cannot make any further changes. Are you sure you want to submit?`
-            : 'Once submitted, you cannot make any further changes. Are you sure you want to submit?'
+          'All questions are answered. Once submitted, you cannot make any further changes. Are you sure you want to submit?'
         }
         onConfirm={() => { setShowSubmitConfirm(false); endExam('COMPLETED'); }}
+        destructive={false}
+      />
+
+      <ConfirmDialog
+        open={showPendingWarning}
+        onOpenChange={setShowPendingWarning}
+        title="Some questions are pending"
+        description={`You still have ${unansweredQuestions.length} unanswered question${unansweredQuestions.length > 1 ? 's' : ''}: ${pendingQuestionPreview}${hasMorePendingQuestions ? ', ...' : ''}. Please answer them before submitting.`}
+        onConfirm={goToFirstPendingQuestion}
         destructive={false}
       />
 
