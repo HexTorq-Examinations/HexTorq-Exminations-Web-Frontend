@@ -8,7 +8,8 @@ import { ExamHistoryEntry } from '@/store/examStore';
 // student sees always matches what the API will actually let them do.
 export function getMappingWindow(mapping: ExamMapping): { start: Date; end: Date } {
   const start = new Date(mapping.startAt || `${mapping.date}T${mapping.startTime}:00`);
-  const end = new Date(mapping.endAt || `${mapping.date}T${mapping.endTime}:00`);
+  const baseEnd = new Date(mapping.endAt || `${mapping.date}T${mapping.endTime}:00`);
+  const end = new Date(baseEnd.getTime() + Math.max(0, Number(mapping.graceMinutes) || 0) * 60 * 1000);
   return { start, end };
 }
 
