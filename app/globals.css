@@ -131,11 +131,26 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    @apply font-sans;
+    /*
+      The app UI was originally built with generous Tailwind spacing and 16px rems,
+      which makes admin/student dashboards feel zoomed-in at normal browser 100%.
+      Keep browser zoom untouched and scale the app itself down slightly by reducing
+      the rem base; Tailwind spacing, cards, typography, dialogs, and controls all
+      become more naturally fitted without rewriting every screen.
+    */
+    font-size: 14px;
+    text-size-adjust: 100%;
+  }
   body {
     @apply bg-background text-foreground;
   }
-  html {
-    @apply font-sans;
+
+  @media (min-width: 1536px) {
+    html {
+      font-size: 14.5px;
+    }
   }
 }
 
@@ -143,4 +158,194 @@
   100% {
     transform: translateX(100%);
   }
+}
+
+/*
+  Compatibility layer for older screens that still use light-only Tailwind
+  classes such as bg-white/text-slate-900 without a matching dark: variant.
+  This keeps dark mode readable while those screens are incrementally cleaned up.
+*/
+.dark .bg-white {
+  background-color: #0f172a;
+}
+
+.dark .bg-slate-50,
+.dark .bg-slate-100,
+.dark .bg-slate-50\/50,
+.dark .bg-slate-100\/50 {
+  background-color: #1e293b;
+}
+
+.dark .bg-blue-50,
+.dark .bg-blue-100,
+.dark .bg-blue-50\/50,
+.dark .bg-blue-100\/50 {
+  background-color: rgba(30, 64, 175, 0.28);
+}
+
+.dark .bg-emerald-50,
+.dark .bg-emerald-100,
+.dark .bg-emerald-50\/50,
+.dark .bg-emerald-100\/50,
+.dark .bg-green-50,
+.dark .bg-green-100 {
+  background-color: rgba(6, 95, 70, 0.32);
+}
+
+.dark .bg-amber-50,
+.dark .bg-amber-100,
+.dark .bg-amber-50\/50,
+.dark .bg-amber-100\/50,
+.dark .bg-yellow-50,
+.dark .bg-yellow-100,
+.dark .bg-orange-50,
+.dark .bg-orange-100 {
+  background-color: rgba(146, 64, 14, 0.32);
+}
+
+.dark .bg-red-50,
+.dark .bg-red-100,
+.dark .bg-red-50\/50,
+.dark .bg-red-100\/50,
+.dark .bg-rose-50,
+.dark .bg-rose-100 {
+  background-color: rgba(127, 29, 29, 0.34);
+}
+
+.dark .bg-purple-50,
+.dark .bg-purple-100,
+.dark .bg-indigo-50,
+.dark .bg-indigo-100 {
+  background-color: rgba(76, 29, 149, 0.32);
+}
+
+.dark .text-black,
+.dark .text-slate-950,
+.dark .text-slate-900,
+.dark .text-slate-800,
+.dark .text-slate-700 {
+  color: #f8fafc;
+}
+
+.dark .text-slate-600,
+.dark .text-slate-500 {
+  color: #cbd5e1;
+}
+
+.dark .text-blue-900,
+.dark .text-blue-800,
+.dark .text-blue-700,
+.dark .text-blue-600 {
+  color: #bfdbfe;
+}
+
+.dark .text-emerald-900,
+.dark .text-emerald-800,
+.dark .text-emerald-700,
+.dark .text-emerald-600,
+.dark .text-green-900,
+.dark .text-green-800,
+.dark .text-green-700,
+.dark .text-green-600 {
+  color: #bbf7d0;
+}
+
+.dark .text-amber-900,
+.dark .text-amber-800,
+.dark .text-amber-700,
+.dark .text-amber-600,
+.dark .text-yellow-900,
+.dark .text-yellow-800,
+.dark .text-yellow-700,
+.dark .text-yellow-600,
+.dark .text-orange-900,
+.dark .text-orange-800,
+.dark .text-orange-700,
+.dark .text-orange-600 {
+  color: #fde68a;
+}
+
+.dark .text-red-900,
+.dark .text-red-800,
+.dark .text-red-700,
+.dark .text-red-600,
+.dark .text-rose-900,
+.dark .text-rose-800,
+.dark .text-rose-700,
+.dark .text-rose-600 {
+  color: #fecaca;
+}
+
+.dark .text-purple-900,
+.dark .text-purple-800,
+.dark .text-purple-700,
+.dark .text-purple-600,
+.dark .text-indigo-900,
+.dark .text-indigo-800,
+.dark .text-indigo-700,
+.dark .text-indigo-600 {
+  color: #ddd6fe;
+}
+
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .border-slate-300 {
+  border-color: #334155;
+}
+
+.dark .border-blue-100,
+.dark .border-blue-200,
+.dark .border-blue-300 {
+  border-color: #1d4ed8;
+}
+
+.dark .border-emerald-100,
+.dark .border-emerald-200,
+.dark .border-emerald-300,
+.dark .border-green-100,
+.dark .border-green-200,
+.dark .border-green-300 {
+  border-color: #047857;
+}
+
+.dark .border-amber-100,
+.dark .border-amber-200,
+.dark .border-amber-300,
+.dark .border-yellow-100,
+.dark .border-yellow-200,
+.dark .border-yellow-300,
+.dark .border-orange-100,
+.dark .border-orange-200,
+.dark .border-orange-300 {
+  border-color: #b45309;
+}
+
+.dark .border-red-100,
+.dark .border-red-200,
+.dark .border-red-300,
+.dark .border-rose-100,
+.dark .border-rose-200,
+.dark .border-rose-300 {
+  border-color: #b91c1c;
+}
+
+.dark .border-purple-100,
+.dark .border-purple-200,
+.dark .border-purple-300,
+.dark .border-indigo-100,
+.dark .border-indigo-200,
+.dark .border-indigo-300 {
+  border-color: #6d28d9;
+}
+
+.dark input,
+.dark textarea,
+.dark select {
+  color: #f8fafc;
+  background-color: #0f172a;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #94a3b8;
 }
