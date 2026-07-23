@@ -144,6 +144,7 @@ export function ResultsView({ role }: ResultsViewProps) {
     anchor.href = href; anchor.download = filename; anchor.click();
     URL.revokeObjectURL(href);
   };
+  const safeFileName = (value: string) => value.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'results';
 
   // Filtering
   const filteredResults = results.filter(r => 
@@ -330,7 +331,8 @@ export function ResultsView({ role }: ResultsViewProps) {
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button variant="outline" size="sm" onClick={() => openAttempts(result.examId, undefined, `${result.examName} — All Attempts`)}><Eye className="w-4 h-4 mr-1" /> All Attempts</Button>
-                          <Button variant="outline" size="sm" onClick={() => download(`/results/${result.id}/export.csv`, `${result.examName}.csv`)}><Download className="w-4 h-4" /></Button>
+                          <Button variant="outline" size="sm" onClick={() => download(`/results/${result.id}/export-detailed.csv`, `${safeFileName(result.examName)}-detailed-results.csv`)}><Download className="w-4 h-4 mr-1" /> Detailed CSV</Button>
+                          <Button variant="outline" size="sm" onClick={() => download(`/results/${result.id}/export.csv`, `${safeFileName(result.examName)}-summary.csv`)} title="Download basic evaluated-students CSV"><Download className="w-4 h-4" /></Button>
                         {result.status === 'Pending Evaluation' ? (
                           <Button 
                             size="sm" 
@@ -350,10 +352,8 @@ export function ResultsView({ role }: ResultsViewProps) {
                         <TableCell colSpan={5} className="p-0">
                           <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
                             {result.mappingSummaries.map((mapping) => (
-                              <button
+                              <div
                                 key={mapping.mappingId}
-                                type="button"
-                                onClick={() => openAttempts(result.examId, mapping.classId, `${result.examName} — ${mapping.className}`)}
                                 className="rounded-xl border bg-white p-4 text-left shadow-sm transition hover:border-blue-300 hover:bg-blue-50 dark:bg-slate-950"
                               >
                                 <div className="flex items-start justify-between gap-3">
@@ -368,8 +368,25 @@ export function ResultsView({ role }: ResultsViewProps) {
                                   <div><p className="text-slate-500">Avg</p><p className="mt-1 font-bold">{mapping.averageScorePercent}%</p></div>
                                   <div><p className="text-slate-500">Pass</p><p className="mt-1 font-bold">{mapping.passRate}%</p></div>
                                 </div>
-                                <p className="mt-3 text-xs text-blue-600">View class attempts</p>
-                              </button>
+                                <div className="mt-4 flex flex-wrap gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8"
+                                    onClick={() => openAttempts(result.examId, mapping.classId, `${result.examName} — ${mapping.className}`)}
+                                  >
+                                    <Eye className="mr-1.5 h-3.5 w-3.5" /> View attempts
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300"
+                                    onClick={() => download(`/results/export/mapping/${mapping.mappingId}.csv`, `${safeFileName(`${result.examName}-${mapping.className}`)}-mapping-results.csv`)}
+                                  >
+                                    <Download className="mr-1.5 h-3.5 w-3.5" /> Download CSV
+                                  </Button>
+                                </div>
+                              </div>
                             ))}
                           </div>
                         </TableCell>
